@@ -6,6 +6,8 @@ import com.jobchef.core.database.repository.JobRepositoryImpl
 import com.jobchef.core.database.repository.TailoredApplicationRepositoryImpl
 import com.jobchef.core.domain.repository.JobRepository
 import com.jobchef.core.domain.repository.TailoredApplicationRepository
+import org.koin.core.module.dsl.bind
+import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 import org.koin.dsl.bind
 

@@ -11,7 +11,7 @@ android {
     defaultConfig {
         applicationId = "com.jobchef"
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -35,14 +35,6 @@ android {
         compose = true
     }
 
-    sourceSets {
-        getByName("debug") {
-            kotlin.srcDir("build/generated/ksp/debug/kotlin")
-        }
-        getByName("release") {
-            kotlin.srcDir("build/generated/ksp/release/kotlin")
-        }
-    }
 }
 
 dependencies {

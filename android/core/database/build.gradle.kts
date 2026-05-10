@@ -17,14 +17,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    sourceSets {
-        getByName("debug") {
-            kotlin.srcDir("build/generated/ksp/debug/kotlin")
-        }
-        getByName("release") {
-            kotlin.srcDir("build/generated/ksp/release/kotlin")
-        }
-    }
 }
 
 ksp {
