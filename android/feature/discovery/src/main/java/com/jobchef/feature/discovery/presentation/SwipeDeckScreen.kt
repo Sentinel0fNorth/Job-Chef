@@ -2,7 +2,6 @@ package com.jobchef.feature.discovery.presentation
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -17,6 +16,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,65 +39,40 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jobchef.core.designsystem.theme.JobMatcherTheme
+import com.jobchef.core.domain.model.Job
+import com.jobchef.core.domain.model.JobStatus
+import com.jobchef.core.domain.model.WorkMode
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
-data class DeckJobItem(
-    val company: String,
-    val role: String,
-    val stipend: String,
-    val location: String,
-    val timeInfo: String,
-    val matchScore: Int,
-    val techStack: List<String>,
-    val logo: String
-)
-
-data class SwipeDeckState(
-    val jobs: List<DeckJobItem> = emptyList()
-)
-
-val dummyDeckJobs = listOf(
-    DeckJobItem(
+/** Preview-only stub jobs — replaced by live Room data at runtime. */
+private val previewJobs = listOf(
+    Job(
+        id = "preview-1",
+        title = "Software Development Engineer Intern",
         company = "Nimbus Labs",
-        role = "Software Development Engineer Intern",
-        stipend = "₹40,000",
         location = "Jaipur, Rajasthan",
-        timeInfo = "Hybrid · 6 months",
-        matchScore = 94,
-        techStack = listOf("Java", "Spring Boot", "Kotlin", "Compose"),
-        logo = "N"
+        description = "Work on cutting-edge microservices with Java and Spring Boot in a fast-paced product environment.",
+        salaryMin = 40000.0,
+        salaryMax = null,
+        redirectUrl = "",
+        skills = listOf("Java", "Spring Boot", "Kotlin", "Compose"),
+        workMode = WorkMode.HYBRID,
+        status = JobStatus.UNSEEN
     ),
-    DeckJobItem(
+    Job(
+        id = "preview-2",
+        title = "Backend Engineer I",
         company = "Vector & Co.",
-        role = "Backend Engineer I",
-        stipend = "₹18 LPA",
         location = "Bangalore",
-        timeInfo = "On-site · Full-time",
-        matchScore = 88,
-        techStack = listOf("Go", "PostgreSQL", "Docker"),
-        logo = "V"
-    ),
-    DeckJobItem(
-        company = "Helio Systems",
-        role = "Android Developer",
-        stipend = "₹14 LPA",
-        location = "Remote",
-        timeInfo = "Full-time",
-        matchScore = 91,
-        techStack = listOf("Kotlin", "Jetpack Compose", "Coroutines"),
-        logo = "H"
-    ),
-    DeckJobItem(
-        company = "Forge Bank",
-        role = "Java Developer",
-        stipend = "₹16 LPA",
-        location = "Mumbai",
-        timeInfo = "Hybrid",
-        matchScore = 82,
-        techStack = listOf("Java", "Spring Boot", "Kafka"),
-        logo = "F"
+        description = "Design and maintain distributed systems handling millions of requests per day.",
+        salaryMin = 1800000.0,
+        salaryMax = null,
+        redirectUrl = "",
+        skills = listOf("Go", "PostgreSQL", "Docker"),
+        workMode = WorkMode.ON_SITE,
+        status = JobStatus.UNSEEN
     )
 )
 
@@ -105,15 +80,18 @@ val dummyDeckJobs = listOf(
  * The Swipe Deck screen displaying job opportunities as an interactive stack of cards.
  *
  * @param state The current UI state containing the list of jobs.
+ * @param onEvent Callback for handling MVI user gestures/actions.
  * @param modifier Modifier for styling the layout.
  */
 @Composable
 fun SwipeDeckScreen(
-    state: SwipeDeckState = SwipeDeckState(jobs = dummyDeckJobs),
+    state: SwipeDeckState,
+    onEvent: (SwipeDeckEvent) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val total = state.jobs.size
-    var currentIndex by remember { mutableIntStateOf(0) }
+    val currentIndex = state.currentIndex
+
 
     val scope = rememberCoroutineScope()
     var isSwipingAway by remember { mutableStateOf(false) }
@@ -146,226 +124,251 @@ fun SwipeDeckScreen(
             .fillMaxSize()
             .background(radialGradient)
     ) {
-        // Progress segments
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 48.dp, start = 20.dp, end = 20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+        if (state.jobs.isEmpty() || currentIndex >= state.jobs.size) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 40.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                for (i in 0 until total) {
-                    val color = when {
-                        i < currentIndex -> MaterialTheme.colorScheme.secondary // #A8B2C1
-                        i == currentIndex -> Color.White
-                        else -> Color.White.copy(alpha = 0.15f)
+                Icon(
+                    imageVector = Icons.Default.Sensors,
+                    contentDescription = "Scanning",
+                    tint = Color(0xFF7D7D7D),
+                    modifier = Modifier.size(64.dp)
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "No unseen dossiers.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color(0xFF7D7D7D),
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Scanning the network for your next batch.\nThey will appear here automatically when secured.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF7D7D7D).copy(alpha = 0.7f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        } else {
+            // Progress segments
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 48.dp, start = 20.dp, end = 20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    for (i in 0 until total) {
+                        val color = when {
+                            i < currentIndex -> MaterialTheme.colorScheme.secondary // #A8B2C1
+                            i == currentIndex -> Color.White
+                            else -> Color.White.copy(alpha = 0.15f)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .height(3.dp)
+                                .weight(1f)
+                                .clip(RoundedCornerShape(50))
+                                .background(color)
+                        )
                     }
+                }
+            }
+
+            // Card Stack Container
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 112.dp, bottom = 176.dp, start = 24.dp, end = 24.dp)
+            ) {
+                // We draw up to 3 cards max: 2 back-to-front layers + 1 fading in
+                for (i in 2 downTo 0) {
+                    val jobIndex = currentIndex + i
+                    if (jobIndex >= state.jobs.size) continue
+
+                    val job: Job = state.jobs[jobIndex]
+                    val effectiveLayer = i - swipeProgress
+
+                    // If effectiveLayer is >= 2, the card is completely hidden.
+                    if (effectiveLayer >= 2f) continue
+
+                    val isTopCard = i == 0
+                    val clampedLayer = if (isTopCard) 0f else effectiveLayer
+
+                    val topPad = (24f * clampedLayer).dp
+                    val horizontalPad = (12f * clampedLayer).dp
+                    val bottomPad = (24f - 12f * clampedLayer).coerceAtLeast(0f).dp
+
+                    val alphaProgress = when {
+                        effectiveLayer <= 0f -> 1f // Top card remains fully opaque
+                        effectiveLayer <= 1f -> 1f - (0.4f * effectiveLayer) // Layer 0 -> 1: 1.0 -> 0.6
+                        else -> 0.6f * (2f - effectiveLayer) // Layer 1 -> 2: 0.6 -> 0.0 (fade in)
+                    }
+
+                    // Option 1 Deferred Content Loading: Text dynamically fades in as the card moves to position 1.
+                    // At effectiveLayer >= 1f (Middle and Back cards), text is completely hidden (0f).
+                    // As effectiveLayer goes from 1f -> 0f, contentAlpha goes from 0f -> 1f.
+                    val contentAlpha = (1f - effectiveLayer).coerceIn(0f, 1f)
+
                     Box(
                         modifier = Modifier
-                            .height(3.dp)
-                            .weight(1f)
-                            .clip(RoundedCornerShape(50))
-                            .background(color)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "DECK · ${currentIndex + 1}/$total",
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                color = Color.White.copy(alpha = 0.5f)
-            )
-        }
-
-        // Card Stack Container
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 112.dp, bottom = 176.dp, start = 24.dp, end = 24.dp)
-        ) {
-            // We draw up to 3 cards max: 2 back-to-front layers + 1 fading in
-            for (i in 2 downTo 0) {
-                val jobIndex = currentIndex + i
-                if (jobIndex >= state.jobs.size) continue
-
-                val job = state.jobs[jobIndex]
-                val effectiveLayer = i - swipeProgress
-
-                // If effectiveLayer is >= 2, the card is completely hidden.
-                if (effectiveLayer >= 2f) continue
-
-                val isTopCard = i == 0
-                val clampedLayer = if (isTopCard) 0f else effectiveLayer
-
-                val topPad = (24f * clampedLayer).dp
-                val horizontalPad = (12f * clampedLayer).dp
-                val bottomPad = (24f - 12f * clampedLayer).coerceAtLeast(0f).dp
-
-                val alphaProgress = when {
-                    effectiveLayer <= 0f -> 1f // Top card remains fully opaque
-                    effectiveLayer <= 1f -> 1f - (0.4f * effectiveLayer) // Layer 0 -> 1: 1.0 -> 0.6
-                    else -> 0.6f * (2f - effectiveLayer) // Layer 1 -> 2: 0.6 -> 0.0 (fade in)
-                }
-
-                // Option 1 Deferred Content Loading: Text dynamically fades in as the card moves to position 1.
-                // At effectiveLayer >= 1f (Middle and Back cards), text is completely hidden (0f).
-                // As effectiveLayer goes from 1f -> 0f, contentAlpha goes from 0f -> 1f.
-                val contentAlpha = (1f - effectiveLayer).coerceIn(0f, 1f)
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = topPad, start = horizontalPad, end = horizontalPad, bottom = bottomPad)
-                        .graphicsLayer { alpha = alphaProgress }
-                        .then(
-                            if (isTopCard) {
-                                Modifier
-                                    .offset {
-                                        IntOffset(offsetAnim.value.x.roundToInt(), offsetAnim.value.y.roundToInt())
-                                    }
-                                    .rotate(rotation)
-                                    .pointerInput(Unit) {
-                                        detectDragGestures(
-                                            onDragStart = {
-                                                if (isSwipingAway) return@detectDragGestures
-                                            },
-                                            onDragEnd = {
-                                                if (isSwipingAway) return@detectDragGestures
-                                                scope.launch {
-                                                    if (offsetAnim.value.x > threshold || offsetAnim.value.x < -threshold) {
-                                                        isSwipingAway = true
-                                                        val direction = if (offsetAnim.value.x > 0) 1 else -1
-                                                        offsetAnim.animateTo(
-                                                            Offset(direction * 1000f, offsetAnim.value.y),
-                                                            tween(300)
-                                                        )
-                                                        currentIndex++
-                                                        offsetAnim.snapTo(Offset.Zero)
-                                                        isSwipingAway = false
-                                                    } else {
-                                                        offsetAnim.animateTo(
-                                                            Offset.Zero,
-                                                            spring(dampingRatio = dampingRatio, stiffness = stiffness)
-                                                        )
+                            .fillMaxSize()
+                            .padding(top = topPad, start = horizontalPad, end = horizontalPad, bottom = bottomPad)
+                            .graphicsLayer { alpha = alphaProgress }
+                            .then(
+                                if (isTopCard) {
+                                    Modifier
+                                        .offset {
+                                            IntOffset(offsetAnim.value.x.roundToInt(), offsetAnim.value.y.roundToInt())
+                                        }
+                                        .rotate(rotation)
+                                        .pointerInput(Unit) {
+                                            detectDragGestures(
+                                                onDragStart = {
+                                                    if (isSwipingAway) return@detectDragGestures
+                                                },
+                                                onDragEnd = {
+                                                    if (isSwipingAway) return@detectDragGestures
+                                                    scope.launch {
+                                                        if (offsetAnim.value.x > threshold || offsetAnim.value.x < -threshold) {
+                                                            isSwipingAway = true
+                                                            val direction = if (offsetAnim.value.x > 0) 1 else -1
+                                                            offsetAnim.animateTo(
+                                                                Offset(direction * 1000f, offsetAnim.value.y),
+                                                                tween(300)
+                                                            )
+                                                            if (direction > 0) onEvent(SwipeDeckEvent.OnLike) else onEvent(SwipeDeckEvent.OnReject)
+                                                            offsetAnim.snapTo(Offset.Zero)
+                                                            isSwipingAway = false
+                                                        } else {
+                                                            offsetAnim.animateTo(
+                                                                Offset.Zero,
+                                                                spring(dampingRatio = dampingRatio, stiffness = stiffness)
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                onDrag = { change, dragAmount ->
+                                                    if (isSwipingAway) return@detectDragGestures
+                                                    change.consume()
+                                                    scope.launch {
+                                                        offsetAnim.snapTo(offsetAnim.value + dragAmount)
                                                     }
                                                 }
-                                            },
-                                            onDrag = { change, dragAmount ->
-                                                if (isSwipingAway) return@detectDragGestures
-                                                change.consume()
-                                                scope.launch {
-                                                    offsetAnim.snapTo(offsetAnim.value + dragAmount)
-                                                }
-                                            }
-                                        )
-                                    }
-                            } else {
-                                Modifier
-                            }
-                        )
-                ) {
-                    DeckCardItem(job = job, contentAlpha = contentAlpha)
+                                            )
+                                        }
+                                } else {
+                                    Modifier
+                                }
+                            )
+                    ) {
+                        DeckCardItem(job = job, contentAlpha = contentAlpha)
+                    }
                 }
             }
-        }
 
-        // Action Row
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(bottom = 96.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Reject Button
-            Box(
+            // Action Row
+            Row(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.1f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                    .clickable {
-                        if (!isSwipingAway && currentIndex < state.jobs.size) {
-                            scope.launch {
-                                isSwipingAway = true
-                                offsetAnim.animateTo(Offset(-1000f, 0f), tween(300))
-                                currentIndex++
-                                offsetAnim.snapTo(Offset.Zero)
-                                isSwipingAway = false
-                            }
-                        }
-                    },
-                contentAlignment = Alignment.Center
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(bottom = 96.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Reject",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(20.dp))
-            
-            // Accept Button
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .shadow(elevation = 18.dp, shape = CircleShape, spotColor = Color.White.copy(alpha = 0.4f))
-                    .clip(CircleShape)
-                    .background(Color.White)
-                    .clickable {
-                        if (!isSwipingAway && currentIndex < state.jobs.size) {
-                            scope.launch {
-                                isSwipingAway = true
-                                offsetAnim.animateTo(Offset(1000f, 0f), tween(300))
-                                currentIndex++
-                                offsetAnim.snapTo(Offset.Zero)
-                                isSwipingAway = false
+                // Reject Button
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.1f))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                        .clickable {
+                            if (!isSwipingAway && currentIndex < state.jobs.size) {
+                                scope.launch {
+                                    isSwipingAway = true
+                                    offsetAnim.animateTo(Offset(-1000f, 0f), tween(300))
+                                    onEvent(SwipeDeckEvent.OnReject)
+                                    offsetAnim.snapTo(Offset.Zero)
+                                    isSwipingAway = false
+                                }
                             }
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Favorite,
-                    contentDescription = "Like",
-                    tint = MaterialTheme.colorScheme.primary, // #1B263B
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(20.dp))
-            
-            // Rewind Button
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.1f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                    .clickable {
-                        if (!isSwipingAway && currentIndex > 0) {
-                            scope.launch {
-                                isSwipingAway = true
-                                currentIndex--
-                                offsetAnim.snapTo(Offset(-1000f, 0f))
-                                offsetAnim.animateTo(Offset.Zero, tween(300))
-                                isSwipingAway = false
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Reject",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.width(20.dp))
+                
+                // Accept Button
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .shadow(elevation = 18.dp, shape = CircleShape, spotColor = Color.White.copy(alpha = 0.4f))
+                        .clip(CircleShape)
+                        .background(Color.White)
+                        .clickable {
+                            if (!isSwipingAway && currentIndex < state.jobs.size) {
+                                scope.launch {
+                                    isSwipingAway = true
+                                    offsetAnim.animateTo(Offset(1000f, 0f), tween(300))
+                                    onEvent(SwipeDeckEvent.OnLike)
+                                    offsetAnim.snapTo(Offset.Zero)
+                                    isSwipingAway = false
+                                }
                             }
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Rewind",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = "Like",
+                        tint = MaterialTheme.colorScheme.primary, // #1B263B
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.width(20.dp))
+                
+                // Rewind Button
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.1f))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                        .clickable {
+                            if (!isSwipingAway && currentIndex > 0) {
+                                scope.launch {
+                                    isSwipingAway = true
+                                    onEvent(SwipeDeckEvent.OnRewind)
+                                    offsetAnim.snapTo(Offset(-1000f, 0f))
+                                    offsetAnim.animateTo(Offset.Zero, tween(300))
+                                    isSwipingAway = false
+                                }
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Rewind",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }
@@ -380,7 +383,7 @@ fun SwipeDeckScreen(
  * @param modifier Modifier for styling the layout.
  */
 @Composable
-fun DeckCardItem(job: DeckJobItem, contentAlpha: Float = 1f, modifier: Modifier = Modifier) {
+fun DeckCardItem(job: Job, contentAlpha: Float = 1f, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -423,7 +426,7 @@ fun DeckCardItem(job: DeckJobItem, contentAlpha: Float = 1f, modifier: Modifier 
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = job.logo,
+                                text = job.company.first().uppercaseChar().toString(),
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -454,7 +457,7 @@ fun DeckCardItem(job: DeckJobItem, contentAlpha: Float = 1f, modifier: Modifier 
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Job Match · ${job.matchScore}%",
+                            text = job.workMode.name.replace('_', ' '),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                             color = Color.White
                         )
@@ -471,8 +474,8 @@ fun DeckCardItem(job: DeckJobItem, contentAlpha: Float = 1f, modifier: Modifier 
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = job.role,
-                    style = MaterialTheme.typography.displayMedium, // matches font-display 2.1rem
+                    text = job.title,
+                    style = MaterialTheme.typography.displayMedium,
                     color = Color.White,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
@@ -481,14 +484,15 @@ fun DeckCardItem(job: DeckJobItem, contentAlpha: Float = 1f, modifier: Modifier 
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "STIPEND",
+                    text = "SALARY",
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                     color = Color.White.copy(alpha = 0.4f)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.Bottom) {
+                    val salary = job.salaryMin
                     Text(
-                        text = job.stipend,
+                        text = if (salary != null) "₹${(salary / 100000).toInt()}L" else "Not disclosed",
                         style = MaterialTheme.typography.displaySmall,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White
@@ -513,7 +517,7 @@ fun DeckCardItem(job: DeckJobItem, contentAlpha: Float = 1f, modifier: Modifier 
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "${job.location} · ${job.timeInfo}",
+                        text = "${job.location} · ${job.workMode.name.replace('_', ' ')}",
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
                         color = MaterialTheme.colorScheme.secondary
                     )
@@ -535,7 +539,7 @@ fun DeckCardItem(job: DeckJobItem, contentAlpha: Float = 1f, modifier: Modifier 
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    job.techStack.forEach { tech ->
+                    job.skills.forEach { tech ->
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
@@ -564,6 +568,9 @@ fun DeckCardItem(job: DeckJobItem, contentAlpha: Float = 1f, modifier: Modifier 
 @Composable
 fun SwipeDeckScreenPreview() {
     JobMatcherTheme {
-        SwipeDeckScreen()
+        SwipeDeckScreen(
+            state = SwipeDeckState(jobs = previewJobs),
+            onEvent = {}
+        )
     }
 }

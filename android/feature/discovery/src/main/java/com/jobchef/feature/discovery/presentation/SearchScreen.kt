@@ -43,25 +43,19 @@ import androidx.compose.ui.unit.dp
 import com.jobchef.core.designsystem.components.ScreenHeader
 import com.jobchef.core.designsystem.theme.JobMatcherTheme
 
-data class SearchUIState(
-    val targetRole: String = "Software Development Engineer",
-    val location: String = "Jaipur · Bangalore · Remote",
-    val keywords: String = "Java, Spring Boot, microservices",
-    val activeResumeName: String = "SDE Backend",
-    val suggestedFilters: List<String> = listOf("Hybrid", "₹40k+/mo", "0-3 yrs", "Product co.", "Series B+"),
-    val selectedFilters: Set<String> = emptySet(),
-    val matchedRolesCount: Int = 218
-)
-
 /**
  * The discovery search screen where the user inputs their job preferences.
  *
  * @param state The current search UI state.
+ * @param onEvent Callback for handling user MVI actions.
+ * @param onSearchClicked Callback to navigate to SwipeDeckScreen.
  * @param modifier Modifier for styling the layout.
  */
 @Composable
 fun SearchScreen(
-    state: SearchUIState = SearchUIState(),
+    state: SearchState,
+    onEvent: (SearchEvent) -> Unit,
+    onSearchClicked: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -89,19 +83,19 @@ fun SearchScreen(
                 icon = Icons.Default.Work,
                 label = "TARGET ROLE",
                 value = state.targetRole,
-                onValueChange = { }
+                onValueChange = { onEvent(SearchEvent.OnRoleChanged(it)) }
             )
             SearchField(
                 icon = Icons.Default.LocationOn,
                 label = "LOCATION",
                 value = state.location,
-                onValueChange = { }
+                onValueChange = { onEvent(SearchEvent.OnLocationChanged(it)) }
             )
             SearchField(
                 icon = Icons.Default.Tag,
                 label = "KEYWORDS",
                 value = state.keywords,
-                onValueChange = { }
+                onValueChange = { onEvent(SearchEvent.OnKeywordsChanged(it)) }
             )
 
             // Active Resume Banner
@@ -167,7 +161,7 @@ fun SearchScreen(
                     Surface(
                         shape = MaterialTheme.shapes.small, // Uses the 12dp small shape
                         color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.clickable { }
+                        modifier = Modifier.clickable { onEvent(SearchEvent.OnFilterToggled(filter)) }
                     ) {
                         Text(
                             text = filter,
@@ -182,7 +176,10 @@ fun SearchScreen(
 
         // Search Button
         Button(
-            onClick = { },
+            onClick = {
+                onEvent(SearchEvent.OnSubmitSearch)
+                onSearchClicked()
+            },
             modifier = Modifier
                 .padding(top = 40.dp, start = 24.dp, end = 24.dp)
                 .fillMaxWidth()
@@ -268,6 +265,10 @@ fun SearchField(
 @Composable
 fun SearchScreenPreview() {
     JobMatcherTheme {
-        SearchScreen()
+        SearchScreen(
+            state = SearchState(),
+            onEvent = {},
+            onSearchClicked = {}
+        )
     }
 }

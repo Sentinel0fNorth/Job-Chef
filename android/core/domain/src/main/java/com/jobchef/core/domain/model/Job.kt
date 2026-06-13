@@ -21,4 +21,4 @@ data class Job(
 
 enum class WorkMode { REMOTE, HYBRID, ON_SITE, UNKNOWN }
 
-enum class JobStatus { UNSEEN, SAVED, SKIPPED }
+enum class JobStatus { UNSEEN, SAVED, REJECTED }

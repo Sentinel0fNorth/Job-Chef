@@ -79,11 +79,13 @@ val dummyResumeState = ResumeVaultState(
  * Displays a list of uploaded resumes and provides an upload area for new PDFs.
  *
  * @param state The current UI state representing the list of resumes.
+ * @param onEvent Callback for handling MVI user actions.
  * @param modifier Modifier to be applied to the screen layout.
  */
 @Composable
 fun ResumeVaultScreen(
-    state: ResumeVaultState = dummyResumeState,
+    state: ResumeVaultState,
+    onEvent: (ResumeVaultEvent) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -101,6 +103,7 @@ fun ResumeVaultScreen(
 
         // Upload area
         UploadArea(
+            onUploadClicked = { onEvent(ResumeVaultEvent.OnUploadPdfClicked) },
             modifier = Modifier.padding(horizontal = 24.dp)
         )
 
@@ -122,7 +125,10 @@ fun ResumeVaultScreen(
             }
 
             items(state.resumes) { resume ->
-                ResumeCard(resume = resume)
+                ResumeCard(
+                    resume = resume,
+                    onClick = { onEvent(ResumeVaultEvent.OnSetActive(resume.title)) }
+                )
             }
         }
     }
@@ -130,13 +136,16 @@ fun ResumeVaultScreen(
 
 
 
+
 /**
  * Interactive upload area for importing new PDF resumes.
  *
+ * @param onUploadClicked Callback when the upload area is clicked.
  * @param modifier Modifier to be applied to the layout.
  */
 @Composable
 fun UploadArea(
+    onUploadClicked: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -149,7 +158,7 @@ fun UploadArea(
                 shape = MaterialTheme.shapes.medium
             )
             .background(MaterialTheme.colorScheme.surface)
-            .clickable { }
+            .clickable { onUploadClicked() }
             .padding(vertical = 24.dp, horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -191,12 +200,14 @@ fun UploadArea(
  * Displays an individual resume card with its metadata, tags, and matching stats.
  *
  * @param resume The state representing the details of the resume.
+ * @param onClick Callback when the resume card is clicked.
  * @param modifier Modifier to be applied to the card layout.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ResumeCard(
     resume: ResumeItemState,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -209,7 +220,7 @@ fun ResumeCard(
                 shape = MaterialTheme.shapes.medium
             )
             .background(MaterialTheme.colorScheme.surface)
-            .clickable { }
+            .clickable { onClick() }
             .padding(20.dp)
     ) {
         Row(
@@ -329,6 +340,9 @@ fun ResumeCard(
 @Composable
 fun ResumeVaultScreenPreview() {
     JobMatcherTheme {
-        ResumeVaultScreen()
+        ResumeVaultScreen(
+            state = dummyResumeState,
+            onEvent = {}
+        )
     }
 }

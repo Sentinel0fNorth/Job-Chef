@@ -2,11 +2,19 @@ package com.jobchef.core.database.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.jobchef.core.domain.model.JobStatus
 
 /**
  * Room entity that mirrors the [com.jobchef.core.domain.model.Job] domain model.
  * Stored locally for offline-first access. UUIDv4 strings are used as primary
  * keys to prevent IDOR attacks and align with the backend schema.
+ *
+ * The [snippet] field holds a pre-truncated 200-character excerpt of the job description.
+ * The full description is intentionally NOT stored on-device to conserve bandwidth and
+ * local DB size — only the snippet is required by the SwipeDeck UI.
+ *
+ * [status] is persisted via [com.jobchef.core.database.Converters] so the raw string
+ * in SQLite matches the enum name exactly.
  */
 @Entity(tableName = "jobs")
 data class JobEntity(
@@ -14,13 +22,15 @@ data class JobEntity(
     val title: String,
     val company: String,
     val location: String,
-    val description: String,
+    /** Pre-truncated 200-character excerpt used by the Swipe Deck card UI. */
+    val snippet: String,
     val salaryMin: Double?,
     val salaryMax: Double?,
     val redirectUrl: String,
     /** Comma-separated list of extracted skills. */
     val skills: String,
     val workMode: String,
-    val status: String,
+    /** Persisted via Converters as a string matching the enum name exactly. */
+    val status: JobStatus,
     val createdAt: Long
 )

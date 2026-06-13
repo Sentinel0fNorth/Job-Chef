@@ -71,11 +71,15 @@ val dummySavedJobsState = SavedJobsState(
  * Displays the list of saved job opportunities with filtering options.
  *
  * @param state The current UI state containing saved jobs and filters.
+ * @param onEvent Callback to dispatch actions back to the ViewModel.
+ * @param onJobDetailsClick Callback to trigger navigation when a card is clicked.
  * @param modifier Modifier for styling the layout.
  */
 @Composable
 fun SavedOpportunitiesScreen(
-    state: SavedJobsState = dummySavedJobsState,
+    state: SavedJobsState,
+    onEvent: (SavedOpportunitiesEvent) -> Unit,
+    onJobDetailsClick: (SavedJobItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -109,7 +113,7 @@ fun SavedOpportunitiesScreen(
                             color = if (isSelected) Color.Transparent else Color.Black.copy(alpha = 0.05f),
                             shape = RoundedCornerShape(50)
                         )
-                        .clickable { }
+                        .clickable { onEvent(SavedOpportunitiesEvent.OnFilterSelected(filter)) }
                         .padding(horizontal = 16.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -130,8 +134,22 @@ fun SavedOpportunitiesScreen(
             contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 112.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(state.jobs) { job ->
-                SavedJobCard(job = job)
+            val filteredJobs = if (state.activeFilter == "All") {
+                state.jobs
+            } else {
+                state.jobs.filter {
+                    (state.activeFilter == "Ready" && it.status == JobStatus.READY) ||
+                            (state.activeFilter == "Tailoring" && it.status == JobStatus.TAILORING)
+                }
+            }
+            items(filteredJobs) { job ->
+                SavedJobCard(
+                    job = job,
+                    onClick = {
+                        onEvent(SavedOpportunitiesEvent.OnJobClicked(job))
+                        onJobDetailsClick(job)
+                    }
+                )
             }
         }
     }
@@ -139,15 +157,18 @@ fun SavedOpportunitiesScreen(
 
 
 
+
 /**
  * Individual job card displaying company, role, match score, and current status.
  *
  * @param job The data class representing the saved job.
+ * @param onClick Callback when the job card is clicked.
  * @param modifier Modifier for styling the layout.
  */
 @Composable
 fun SavedJobCard(
     job: SavedJobItem,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -160,7 +181,7 @@ fun SavedJobCard(
                 color = Color.Black.copy(alpha = 0.05f),
                 shape = MaterialTheme.shapes.large
             )
-            .clickable { }
+            .clickable { onClick() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -255,6 +276,10 @@ fun SavedJobCard(
 @Composable
 fun SavedOpportunitiesScreenPreview() {
     JobMatcherTheme {
-        SavedOpportunitiesScreen()
+        SavedOpportunitiesScreen(
+            state = dummySavedJobsState,
+            onEvent = {},
+            onJobDetailsClick = {}
+        )
     }
 }

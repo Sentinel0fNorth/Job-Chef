@@ -4,8 +4,10 @@ import androidx.room.Room
 import com.jobchef.core.database.JobChefDatabase
 import com.jobchef.core.database.repository.JobRepositoryImpl
 import com.jobchef.core.database.repository.TailoredApplicationRepositoryImpl
+import com.jobchef.core.database.worker.SyncJobsWorker
 import com.jobchef.core.domain.repository.JobRepository
 import com.jobchef.core.domain.repository.TailoredApplicationRepository
+import org.koin.androidx.workmanager.dsl.worker
 import org.koin.core.module.dsl.bind
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
@@ -31,4 +33,6 @@ val databaseModule = module {
 
     singleOf(::JobRepositoryImpl) { bind<JobRepository>() }
     singleOf(::TailoredApplicationRepositoryImpl) { bind<TailoredApplicationRepository>() }
+
+    worker { SyncJobsWorker(get(), get(), get()) }
 }

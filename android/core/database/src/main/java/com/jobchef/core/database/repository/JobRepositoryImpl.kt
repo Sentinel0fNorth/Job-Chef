@@ -13,8 +13,11 @@ import kotlinx.coroutines.flow.map
 
 /**
  * Concrete implementation of [JobRepository].
- * Applies the offline-first strategy: UI always reads from Room,
- * network data flows in via [refreshJobBatch].
+ * Applies the offline-first strategy: the UI always reads from the local Room cache,
+ * and network data flows in via [refreshJobBatch].
+ *
+ * [status] conversion is handled transparently by [com.jobchef.core.database.Converters]
+ * so no manual [JobStatus.valueOf] / [JobStatus.name] calls are needed here.
  */
 class JobRepositoryImpl(
     private val jobDao: JobDao,
@@ -27,29 +30,36 @@ class JobRepositoryImpl(
     override fun getSavedJobs(): Flow<List<Job>> =
         jobDao.getSavedJobs().map { entities -> entities.map { it.toDomain() } }
 
+    override fun getUnseenJobs(): Flow<List<Job>> =
+        jobDao.getUnseenJobs().map { entities -> entities.map { it.toDomain() } }
+
+    override fun searchJobs(query: String): Flow<List<Job>> =
+        jobDao.searchJobs(query).map { entities -> entities.map { it.toDomain() } }
+
     override suspend fun updateJobStatus(jobId: String, status: JobStatus) {
-        jobDao.updateJobStatus(jobId, status.name)
+        jobDao.updateJobStatus(jobId, status)
     }
 
-    override suspend fun refreshJobBatch() {
-        // TODO: Read user preferences (query/location) from DataStore
-        val response = apiService.getJobBatch(query = "Software Engineer", location = "")
+    override suspend fun refreshJobBatch(query: String, location: String) {
+        val response = apiService.getJobBatch(query = query, location = location)
         jobDao.clearNonSavedJobs()
         jobDao.insertJobs(response.results.map { it.toEntity() })
     }
+
+    // ---- Private mapping ----
 
     private fun JobEntity.toDomain() = Job(
         id = id,
         title = title,
         company = company,
         location = location,
-        description = description,
+        description = snippet,   // The snippet IS the on-device description for V1
         salaryMin = salaryMin,
         salaryMax = salaryMax,
         redirectUrl = redirectUrl,
         skills = skills.split(",").filter { it.isNotBlank() },
         workMode = WorkMode.valueOf(workMode),
-        status = JobStatus.valueOf(status),
+        status = status,
         createdAt = createdAt
     )
 }

@@ -1,6 +1,7 @@
 package com.jobchef.core.network.di
 
 import com.jobchef.core.network.api.JobChefApiService
+import com.jobchef.core.network.interceptor.MockJobInterceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.dsl.module
@@ -29,6 +30,7 @@ val networkModule = module {
             level = HttpLoggingInterceptor.Level.BODY
         }
         OkHttpClient.Builder()
+            .addInterceptor(MockJobInterceptor()) // mock must sit before logger
             .addInterceptor(loggingInterceptor)
             // Generous timeout to accommodate GCP Cloud Run cold starts (~5-8s)
             .connectTimeout(15, TimeUnit.SECONDS)

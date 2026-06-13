@@ -38,4 +38,7 @@ dependencies {
     // Koin (for koinViewModel in composables)
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.compose.viewmodel)
+
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
 }

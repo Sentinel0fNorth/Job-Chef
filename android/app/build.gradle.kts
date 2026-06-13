@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -44,6 +45,9 @@ dependencies {
     implementation(project(":core:network"))
     implementation(project(":feature:discovery"))
     implementation(project(":feature:onboarding"))
+    implementation(project(":feature:resume"))
+    implementation(project(":feature:saved"))
+    implementation(project(":feature:tailor"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -53,11 +57,20 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
+
+    // Navigation Compose
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.kotlinx.serialization.json)
 
     // Koin
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)
     implementation(libs.koin.compose.viewmodel)
+    implementation(libs.koin.workmanager)
+
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
 
     // Room
     implementation(libs.room.runtime)
