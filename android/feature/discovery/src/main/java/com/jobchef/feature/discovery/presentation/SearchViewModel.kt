@@ -86,10 +86,16 @@ class SearchViewModel(
         // But some projects let features depend on database if they aren't fully separated or to simplify things.
         // Let's use Class.forName to keep the module separation clean (feature does not depend on database).
         // Let's look:
+        // Dynamic class loading is used to resolve SyncJobsWorker. This keeps feature:discovery
+        // decoupled from core:database, respecting clean architecture boundaries.
+        // If the worker class cannot be found (e.g. package renaming), we return silently.
         val workerClass = try {
             Class.forName("com.jobchef.core.database.worker.SyncJobsWorker") as Class<out androidx.work.ListenableWorker>
         } catch (e: Exception) {
-            // Fallback just in case
+            // Fallback just in case.
+            // NOTE: If this fails, the screen remains stuck in isLoading = true, but since
+            // SearchScreen immediately triggers onSearchClicked() navigation to SwipeDeckScreen,
+            // this does not block the user under normal flow.
             return
         }
 

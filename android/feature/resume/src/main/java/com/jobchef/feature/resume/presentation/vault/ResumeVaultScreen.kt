@@ -39,7 +39,8 @@ import com.jobchef.core.designsystem.components.ScreenHeader
 import com.jobchef.core.designsystem.theme.JobMatcherTheme
 
 data class ResumeVaultState(
-    val resumes: List<ResumeItemState> = emptyList()
+    val resumes: List<ResumeItemState> = emptyList(),
+    val parsedText: String? = null
 )
 
 data class ResumeItemState(

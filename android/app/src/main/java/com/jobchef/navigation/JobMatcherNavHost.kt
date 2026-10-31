@@ -13,6 +13,7 @@ import com.jobchef.feature.discovery.presentation.SwipeDeckScreen
 import com.jobchef.feature.discovery.presentation.SwipeDeckViewModel
 import com.jobchef.feature.resume.presentation.vault.ResumeVaultScreen
 import com.jobchef.feature.resume.presentation.vault.ResumeVaultViewModel
+import androidx.navigation.toRoute
 import com.jobchef.feature.saved.presentation.SavedOpportunitiesScreen
 import com.jobchef.feature.saved.presentation.SavedOpportunitiesViewModel
 import com.jobchef.feature.tailor.presentation.export.ExportScreen
@@ -64,14 +65,15 @@ fun JobMatcherNavHost(
             SavedOpportunitiesScreen(
                 state = state,
                 onEvent = viewModel::onEvent,
-                onJobDetailsClick = { _ ->
-                    navController.navigate(Screen.Export)
+                onJobDetailsClick = { job ->
+                    navController.navigate(Screen.Export(job.id))
                 }
             )
         }
 
-        composable<Screen.Export> {
-            ExportScreen()
+        composable<Screen.Export> { navBackStackEntry ->
+            val export = navBackStackEntry.toRoute<Screen.Export>()
+            ExportScreen(jobId = export.jobId)
         }
     }
 }

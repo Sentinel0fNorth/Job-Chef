@@ -16,5 +16,5 @@ sealed interface Screen {
     data object Saved : Screen
 
     @Serializable
-    data object Export : Screen
+    data class Export(val jobId: String) : Screen
 }

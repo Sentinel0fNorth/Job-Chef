@@ -58,7 +58,8 @@ class JobRepositoryImpl(
         salaryMax = salaryMax,
         redirectUrl = redirectUrl,
         skills = skills.split(",").filter { it.isNotBlank() },
-        workMode = WorkMode.valueOf(workMode),
+        // Safely map to WorkMode enum, falling back to UNKNOWN if an unexpected string is stored
+        workMode = runCatching { WorkMode.valueOf(workMode) }.getOrDefault(WorkMode.UNKNOWN),
         status = status,
         createdAt = createdAt
     )

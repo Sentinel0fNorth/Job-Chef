@@ -4,6 +4,7 @@ import androidx.room.Room
 import com.jobchef.core.database.JobChefDatabase
 import com.jobchef.core.database.repository.JobRepositoryImpl
 import com.jobchef.core.database.repository.TailoredApplicationRepositoryImpl
+import com.jobchef.core.database.session.SessionManager
 import com.jobchef.core.database.worker.SyncJobsWorker
 import com.jobchef.core.domain.repository.JobRepository
 import com.jobchef.core.domain.repository.TailoredApplicationRepository
@@ -35,4 +36,7 @@ val databaseModule = module {
     singleOf(::TailoredApplicationRepositoryImpl) { bind<TailoredApplicationRepository>() }
 
     worker { SyncJobsWorker(get(), get(), get()) }
+    single { androidx.work.WorkManager.getInstance(get()) }
+
+    single { SessionManager(get()) }
 }

@@ -44,6 +44,7 @@ data class SavedJobsState(
 )
 
 data class SavedJobItem(
+    val id: String,
     val company: String,
     val role: String,
     val logo: String,
@@ -59,11 +60,11 @@ enum class JobStatus {
 
 val dummySavedJobsState = SavedJobsState(
     jobs = listOf(
-        SavedJobItem("Nimbus Labs", "SDE Intern", "N", "Jaipur · Hybrid", "₹40k/mo", JobStatus.READY, 94),
-        SavedJobItem("Vector & Co.", "Backend Engineer I", "V", "Bangalore · On-site", "₹18 LPA", JobStatus.TAILORING, 88),
-        SavedJobItem("Helio Systems", "Android Developer", "H", "Remote · Full-time", "₹14 LPA", JobStatus.READY, 91),
-        SavedJobItem("Forge Bank", "Java Developer", "F", "Mumbai · Hybrid", "₹16 LPA", JobStatus.TAILORING, 82),
-        SavedJobItem("Orbit Health", "Full-Stack Engineer", "O", "Remote · Contract", "$45/hr", JobStatus.READY, 87)
+        SavedJobItem("1", "Nimbus Labs", "SDE Intern", "N", "Jaipur · Hybrid", "₹40k/mo", JobStatus.READY, 94),
+        SavedJobItem("2", "Vector & Co.", "Backend Engineer I", "V", "Bangalore · On-site", "₹18 LPA", JobStatus.TAILORING, 88),
+        SavedJobItem("3", "Helio Systems", "Android Developer", "H", "Remote · Full-time", "₹14 LPA", JobStatus.READY, 91),
+        SavedJobItem("4", "Forge Bank", "Java Developer", "F", "Mumbai · Hybrid", "₹16 LPA", JobStatus.TAILORING, 82),
+        SavedJobItem("5", "Orbit Health", "Full-Stack Engineer", "O", "Remote · Contract", "$45/hr", JobStatus.READY, 87)
     )
 )
 

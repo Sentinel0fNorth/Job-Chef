@@ -28,7 +28,8 @@ class TailoredApplicationRepositoryImpl(
     private fun TailoredApplicationEntity.toDomain() = TailoredApplication(
         id = id,
         jobId = jobId,
-        status = GenerationStatus.valueOf(status),
+        // Safely map to GenerationStatus enum, falling back to PENDING if database value is unexpected
+        status = runCatching { GenerationStatus.valueOf(status) }.getOrDefault(GenerationStatus.PENDING),
         outputPdfUrl = outputPdfUrl,
         createdAt = createdAt
     )

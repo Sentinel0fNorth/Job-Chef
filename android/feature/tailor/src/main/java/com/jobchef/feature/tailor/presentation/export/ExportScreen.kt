@@ -38,6 +38,7 @@ import com.jobchef.core.designsystem.theme.JobMatcherTheme
  */
 @Composable
 fun ExportScreen(
+    jobId: String,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -245,6 +246,6 @@ fun LatexDocumentPreview() {
 @Composable
 fun ExportScreenPreview() {
     JobMatcherTheme {
-        ExportScreen()
+        ExportScreen(jobId = "preview")
     }
 }

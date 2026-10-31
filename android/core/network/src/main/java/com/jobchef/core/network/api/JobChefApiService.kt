@@ -1,7 +1,10 @@
 package com.jobchef.core.network.api
 
 import com.jobchef.core.network.model.AdzunaResponse
+import kotlinx.serialization.Serializable
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -31,10 +34,31 @@ interface JobChefApiService {
     suspend fun getApplicationStatus(
         @Path("jobId") jobId: String
     ): ApplicationStatusResponse
+
+    /**
+     * Sends the selected resume text along with a target jobId to prompt backend tailoring.
+     * Returns the generated list of tailored bullet points and custom cover letter.
+     */
+    @POST("v1/api/applications/generate")
+    suspend fun generateApplication(
+        @Body request: GenerateApplicationRequest
+    ): GenerateApplicationResponse
 }
 
 data class ApplicationStatusResponse(
     val jobId: String,
     val status: String,
     val outputPdfUrl: String?
+)
+
+@Serializable
+data class GenerateApplicationRequest(
+    val jobId: String,
+    val resumeText: String
+)
+
+@Serializable
+data class GenerateApplicationResponse(
+    val tailoredBullets: List<String>,
+    val coverLetter: String
 )
