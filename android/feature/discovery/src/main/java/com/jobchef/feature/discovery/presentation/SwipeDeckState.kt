@@ -12,6 +12,7 @@ import com.jobchef.core.domain.model.Job
 data class SwipeDeckState(
     val jobs: List<Job> = emptyList(),
     val currentIndex: Int = 0,
+    val canUndo: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null
 )

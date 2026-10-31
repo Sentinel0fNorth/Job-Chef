@@ -8,9 +8,19 @@ package com.jobchef.core.domain.model
 data class TailoredApplication(
     val id: String,           // UUIDv4
     val jobId: String,        // FK → Job.id
+    val resumeId: String? = null,
+    val resumeVersion: Int? = null,
     val status: GenerationStatus,
     val outputPdfUrl: String? = null,
+    val resumeContentJson: String? = null,
+    val coverLetter: String? = null,
+    val generationVersion: Int = 0,
+    val errorCode: String? = null,
+    val errorMessage: String? = null,
+    val demoMode: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
 )
 
-enum class GenerationStatus { PENDING, IN_PROGRESS, COMPLETED, FAILED }
+enum class GenerationStatus {
+    WAITING_FOR_RESUME, QUEUED, PROCESSING, READY, FAILED, QUOTA_BLOCKED, CANCELLED
+}

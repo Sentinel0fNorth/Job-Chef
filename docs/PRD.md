@@ -1,35 +1,36 @@
-# Product Requirements Document (PRD)
+# Product requirements: Job Chef V1
 
-**Project Name:** The Offline-First Agentic Job Matcher  
-**Document Version:** 2.0 (Finalized Architecture & JIT Generation)
+## Purpose and boundaries
 
-## 1. Executive Summary
+Job Chef is a college-project Android app that helps one registered device browse a bounded set of job listings and prepare reviewable application documents. It does not submit applications, provide a user account, synchronize a profile between devices, perform OCR, or promise that content is universally ATS-compatible.
 
-**Objective:** To build an end-to-end career-tech platform that sources live job postings via Adzuna and utilizes Just-In-Time (JIT) AI generation to dynamically tailor a candidate's resume and cover letter only for the roles they explicitly express interest in.
+## User flow
 
-**The Solution:** An event-driven, asynchronous backend architecture that decouples job discovery from AI processing. Users review raw/summarized job listings in a native Android swipe interface. A right-swipe triggers a background Pub/Sub event, enqueuing the Gemini AI to generate customized application materials natively in the cloud.
+1. The user registers the installation with a provisioned, one-use code. The returned revocable device token is encrypted locally.
+2. The user imports an unlocked, text-based PDF (up to 10 MB, 20 pages, and 50,000 extracted characters), reviews the extracted text and heuristic contact redactions, and selects a local active resume.
+3. The app searches a supported Adzuna country for at most 20 jobs. Match explanations are deterministic token overlap, not AI predictions. Six-hour cache entries avoid repeated provider calls for identical search inputs.
+4. Saves/rejections/undo are persisted in Room and synchronized through an offline outbox. A save is the explicit request for asynchronous tailoring.
+5. The backend uses only reviewed sanitized resume text, saves typed generation output, and renders a private sanitized preview PDF. Android displays the actual rendered PDF pages and builds a personalized export locally with contact details from the exact matching resume version.
+6. Users review, edit through the on-device workflow, save/share a resume or cover-letter PDF, or open a validated HTTPS provider listing. The app never reports that an application was submitted.
 
-## 2. Core Features & User Flow
+## Privacy and reliability requirements
 
-### 2.1 The "Resume Vault" (Onboarding)
-**Feature:** Users upload a base resume PDF. Local Android code extracts text and masks PII (emails/phones). A one-time backend AI call structures this text into a strict JSON schema and saves it to PostgreSQL.
+- Source PDFs, contact details, and final personalized PDFs remain on-device unless the user shares an export.
+- Obvious generated contact details are rejected before backend storage; heuristic sanitization is not a guarantee of anonymization.
+- Device requests are authorized independently. No cross-device recovery is supported.
+- Saved intent and outbox events are durable before asynchronous dispatch. Duplicate delivery, retries, stale-result isolation, and lease recovery are required.
+- Synthetic data and model output are visibly labeled and isolated to the explicit demo profile.
+- Provider, quota, storage, and configuration failures remain explicit; there is no automatic paid fallback.
 
-### 2.2 Job Discovery (The Adzuna Engine)
-**Feature:** The user submits a target role (e.g., "SDE Intern"). The backend queries the Adzuna API, applies a lightweight deduplication/normalization filter, and syncs 10-20 raw job summaries (Title, Company, Salary, Snippet) to the user's mobile device as UNSEEN jobs.
+## Fixed V1 bounds
 
-### 2.3 The "Swipe" Discovery Deck (UI/UX)
-**Feature:** A gesture-based Compose card deck displaying UNSEEN jobs.
-* **Swipe Left (REJECTED):** Job is hidden. Backend syncs state. No AI triggered.
-* **Swipe Right (SAVED):** Job moves to "Saved" list. This triggers the Agentic Tailoring workflow.
+- 20 results per search maximum.
+- 5 new saved applications per device per day.
+- 1 explicit regeneration per job per day.
+- Configurable global daily generation cap (default 20) and concurrent generation cap (default 2).
+- 50,000-character sanitized resume; 20,000-character job description; 60,000-character combined input; 24,000-character generated response.
+- Local preview artifact is private and persistent; live GCS preview access is device-owned, and cloud artifact lifecycle deletes previews after 90 days.
 
-### 2.4 Just-In-Time Agentic Tailoring (The AI Worker)
-**Feature:** When the backend receives a SAVED state from the sync API, it publishes an event to Pub/Sub. The AI Worker consumes this, feeds the full Adzuna job description and the user's JSON base resume to Gemini 1.5 Flash, and generates tailored resume bullets and a cover letter.
+## Release status
 
-### 2.5 Offline-First Synchronization & PDF Export
-**Feature:** Room DB and WorkManager ensure the user can swipe and read through jobs offline. Once tailored materials are synced back to the device, the user can request a backend-generated, ATS-compliant LaTeX PDF of their tailored resume.
-
-## 3. Security, Privacy & Limits
-
-* **PII Masking:** Client-side Regex masks contact info before any data hits the network.
-* **Rate Limiting:** The backend enforces strict rate limiting to protect the Adzuna API quota from abuse.
-* **Secret Protection:** Zero hardcoded keys. All credentials are injected at runtime via GCP Secret Manager.
+Source implementation and deployment packaging exist, but builds, tests, emulator acceptance, live provider requests, and cloud deployment remain unverified. See `CURRENT_STATUS.md` and `TRANSFER_AND_DEPLOY.md`.

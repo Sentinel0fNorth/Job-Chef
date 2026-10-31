@@ -1,0 +1,145 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: jobchef
+      POSTGRES_USER: jobchef
+      POSTGRES_PASSWORD: jobchef-local-only
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobchef -d jobchef"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  pubsub:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command:
+      - gcloud
+      - beta
+      - emulators
+      - pubsub
+      - start
+      - --host-port=0.0.0.0:8085
+      - --project=jobchef-local
+    ports:
+      - "8085:8085"
+
+  pubsub-init:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    depends_on:
+      - pubsub
+    environment:
+      CLOUDSDK_API_ENDPOINT_OVERRIDES_PUBSUB: http://pubsub:8085/
+      CLOUDSDK_CORE_PROJECT: jobchef-local
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        for attempt in $$(seq 1 30); do
+          if gcloud pubsub topics list --project=jobchef-local >/dev/null 2>&1; then
+            break
+          fi
+          sleep 2
+        done
+        gcloud pubsub topics describe jobchef-generation --project=jobchef-local >/dev/null 2>&1 ||
+          gcloud pubsub topics create jobchef-generation --project=jobchef-local
+        gcloud pubsub subscriptions describe jobchef-generation-push --project=jobchef-local >/dev/null 2>&1 ||
+          gcloud pubsub subscriptions create jobchef-generation-push \
+            --project=jobchef-local \
+            --topic=jobchef-generation \
+            --push-endpoint=http://worker:8080/internal/pubsub/generate \
+            --ack-deadline=600
+        gcloud pubsub topics describe jobchef-generation-dead-letter --project=jobchef-local >/dev/null 2>&1 ||
+          gcloud pubsub topics create jobchef-generation-dead-letter --project=jobchef-local
+    restart: "no"
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.api
+    environment:
+      SPRING_PROFILES_ACTIVE: demo
+      JOB_CHEF_MODE: demo
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/jobchef
+      SPRING_DATASOURCE_USERNAME: jobchef
+      SPRING_DATASOURCE_PASSWORD: jobchef-local-only
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_SSL: "false"
+      PUBSUB_EMULATOR_HOST: pubsub:8085
+      GCP_PROJECT_ID: jobchef-local
+      PUBSUB_TOPIC: jobchef-generation
+      JOB_CHEF_LOCAL_ARTIFACT_DIRECTORY: /var/lib/jobchef/artifacts
+      MAX_SEARCH_RESULTS: 20
+      MAX_NEW_APPLICATIONS_PER_DEVICE_PER_DAY: 5
+      MAX_REGENERATIONS_PER_JOB_PER_DAY: 1
+      MAX_GLOBAL_GENERATIONS_PER_DAY: 20
+      MAX_GLOBAL_TOKENS_PER_DAY: 100000
+    ports:
+      - "8081:8080"
+    volumes:
+      - preview-artifacts:/var/lib/jobchef/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pubsub-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8080/actuator/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    environment:
+      SPRING_PROFILES_ACTIVE: demo
+      JOB_CHEF_MODE: demo
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/jobchef
+      SPRING_DATASOURCE_USERNAME: jobchef
+      SPRING_DATASOURCE_PASSWORD: jobchef-local-only
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_SSL: "false"
+      JOB_CHEF_LOCAL_ARTIFACT_DIRECTORY: /var/lib/jobchef/artifacts
+      MAX_GLOBAL_GENERATIONS_PER_DAY: 20
+      MAX_GLOBAL_TOKENS_PER_DAY: 100000
+    volumes:
+      - preview-artifacts:/var/lib/jobchef/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pubsub:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8080/actuator/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  postgres-data:
+  redis-data:
+  preview-artifacts:

@@ -23,4 +23,9 @@ interface TailoredApplicationRepository {
      * Syncs the latest generation status from the backend for a specific job.
      */
     suspend fun syncApplicationStatus(jobId: String)
+
+    /**
+     * Removes local generated data and queues device-owned server deletion for replay.
+     */
+    suspend fun deleteApplication(jobId: String)
 }

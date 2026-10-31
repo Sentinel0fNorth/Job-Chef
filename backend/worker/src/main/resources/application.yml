@@ -1,0 +1,72 @@
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:live}
+  application:
+    name: job-chef-generation-worker
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/jobchef}
+    username: ${SPRING_DATASOURCE_USERNAME:jobchef}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:3}
+      minimum-idle: 0
+      connection-timeout: 5000
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL:false}
+      timeout: 2s
+  jackson:
+    default-property-inclusion: non_null
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+logging:
+  level:
+    org.springframework.web: WARN
+    org.springframework.jdbc.core: WARN
+
+jobchef:
+  mode: ${JOB_CHEF_MODE:live}
+  internal-audience: ${JOB_CHEF_INTERNAL_AUDIENCE:}
+  scheduler-service-account: ${SCHEDULER_SERVICE_ACCOUNT:}
+  pubsub-push-service-account: ${PUBSUB_PUSH_SERVICE_ACCOUNT:}
+  artifacts:
+    bucket: ${JOB_CHEF_ARTIFACTS_BUCKET:}
+    local-directory: ${JOB_CHEF_LOCAL_ARTIFACT_DIRECTORY:./.jobchef/artifacts}
+    latex-executable: ${LATEX_EXECUTABLE:pdflatex}
+  limits:
+    max-search-results: ${MAX_SEARCH_RESULTS:20}
+    max-new-applications-per-day: ${MAX_NEW_APPLICATIONS_PER_DEVICE_PER_DAY:5}
+    max-regenerations-per-application-per-day: ${MAX_REGENERATIONS_PER_JOB_PER_DAY:1}
+    max-global-generations-per-day: ${MAX_GLOBAL_GENERATIONS_PER_DAY:20}
+    max-global-tokens-per-day: ${MAX_GLOBAL_TOKENS_PER_DAY:100000}
+    max-resume-characters: ${MAX_RESUME_CHARACTERS:50000}
+    max-job-description-characters: ${MAX_JOB_DESCRIPTION_CHARACTERS:20000}
+    max-generation-input-characters: ${MAX_GENERATION_INPUT_CHARACTERS:60000}
+    max-generated-characters: ${MAX_GENERATED_CHARACTERS:24000}
+    max-concurrent-generations: ${MAX_CONCURRENT_GENERATIONS:2}
+    max-outbox-batch-size: ${MAX_OUTBOX_BATCH_SIZE:10}
+
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:}
+  base-url: ${GEMINI_API_BASE_URL:https://generativelanguage.googleapis.com}

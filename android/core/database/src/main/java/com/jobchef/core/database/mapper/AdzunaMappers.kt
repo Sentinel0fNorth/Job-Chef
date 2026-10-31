@@ -2,7 +2,7 @@ package com.jobchef.core.database.mapper
 
 import com.jobchef.core.database.entity.JobEntity
 import com.jobchef.core.domain.model.JobStatus
-import com.jobchef.core.network.model.AdzunaJob
+import com.jobchef.core.network.model.JobResponseDto
 
 private const val SNIPPET_MAX_CHARS = 200
 
@@ -18,17 +18,21 @@ private const val SNIPPET_MAX_CHARS = 200
  * For V1, skills and workMode default to empty/UNKNOWN since extraction happens server-side.
  * These will be populated once the backend enrichment endpoint is integrated.
  */
-fun AdzunaJob.toEntity(): JobEntity = JobEntity(
+fun JobResponseDto.toEntity(): JobEntity = JobEntity(
     id = id,
     title = title,
-    company = company.displayName,
-    location = location.displayName,
+    company = company,
+    location = location,
     snippet = description.take(SNIPPET_MAX_CHARS),
     salaryMin = salaryMin,
     salaryMax = salaryMax,
+    salaryCurrency = currency,
     redirectUrl = redirectUrl,
-    skills = "",               // Populated by backend enrichment (V2)
-    workMode = "UNKNOWN",      // Populated by backend enrichment (V2)
+    skills = skills.joinToString(","),
+    workMode = workMode,
+    matchScore = matchScore,
+    matchMethod = matchMethod,
     status = JobStatus.UNSEEN,
+    inCurrentBatch = true,
     createdAt = System.currentTimeMillis()
 )

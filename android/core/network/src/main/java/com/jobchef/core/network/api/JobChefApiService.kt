@@ -1,64 +1,55 @@
 package com.jobchef.core.network.api
 
-import com.jobchef.core.network.model.AdzunaResponse
-import kotlinx.serialization.Serializable
+import com.jobchef.core.network.model.ApplicationResponseDto
+import com.jobchef.core.network.model.DecisionSyncRequestDto
+import com.jobchef.core.network.model.DecisionSyncResponseDto
+import com.jobchef.core.network.model.DeviceCredentialsResponse
+import com.jobchef.core.network.model.DeviceRegistrationRequest
+import com.jobchef.core.network.model.ResumeResponseDto
+import com.jobchef.core.network.model.ResumeUploadRequestDto
+import com.jobchef.core.network.model.SearchRequestDto
+import com.jobchef.core.network.model.SearchResponseDto
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
-import retrofit2.http.Query
 
-/**
- * Retrofit interface for the Spring Boot backend that proxies Adzuna.
- * The backend shields the Adzuna API keys and enforces rate-limiting (Bucket4j).
- * The Android client authenticates to the backend with a Bearer token per SRS §3.3.
- */
 interface JobChefApiService {
+    @POST("api/v1/auth/register")
+    suspend fun registerDevice(@Body request: DeviceRegistrationRequest): DeviceCredentialsResponse
 
-    /**
-     * Fetches a curated batch of 15–20 jobs from the backend.
-     * The [query] and [location] are user preferences set during onboarding.
-     */
-    @GET("api/v1/jobs")
-    suspend fun getJobBatch(
-        @Query("what") query: String,
-        @Query("where") location: String,
-        @Query("results_per_page") pageSize: Int = 20
-    ): AdzunaResponse
+    @POST("api/v1/auth/refresh")
+    suspend fun refreshDevice(): DeviceCredentialsResponse
 
-    /**
-     * Triggers the AI tailoring pipeline for a saved job.
-     * The backend publishes a Pub/Sub event which invokes Gemini asynchronously.
-     */
-    @GET("api/v1/applications/{jobId}/status")
-    suspend fun getApplicationStatus(
-        @Path("jobId") jobId: String
-    ): ApplicationStatusResponse
+    @POST("api/v1/auth/revoke")
+    suspend fun revokeDevice()
 
-    /**
-     * Sends the selected resume text along with a target jobId to prompt backend tailoring.
-     * Returns the generated list of tailored bullet points and custom cover letter.
-     */
-    @POST("v1/api/applications/generate")
-    suspend fun generateApplication(
-        @Body request: GenerateApplicationRequest
-    ): GenerateApplicationResponse
+    @POST("api/v1/discovery/search")
+    suspend fun getJobBatch(@Body request: SearchRequestDto): SearchResponseDto
+
+    @POST("api/v1/resumes")
+    suspend fun uploadResume(@Body request: ResumeUploadRequestDto): ResumeResponseDto
+
+    @GET("api/v1/resumes")
+    suspend fun getResumes(): List<ResumeResponseDto>
+
+    @PUT("api/v1/resumes/{resumeId}/active")
+    suspend fun setActiveResume(@Path("resumeId") resumeId: String)
+
+    @DELETE("api/v1/resumes/{resumeId}")
+    suspend fun deleteResume(@Path("resumeId") resumeId: String)
+
+    @POST("api/v1/decisions/sync")
+    suspend fun syncDecisions(@Body request: DecisionSyncRequestDto): DecisionSyncResponseDto
+
+    @GET("api/v1/applications/by-job/{jobId}")
+    suspend fun getApplication(@Path("jobId") jobId: String): ApplicationResponseDto
+
+    @POST("api/v1/applications/by-job/{jobId}/regenerate")
+    suspend fun regenerate(@Path("jobId") jobId: String)
+
+    @DELETE("api/v1/applications/by-job/{jobId}")
+    suspend fun deleteApplication(@Path("jobId") jobId: String)
 }
-
-data class ApplicationStatusResponse(
-    val jobId: String,
-    val status: String,
-    val outputPdfUrl: String?
-)
-
-@Serializable
-data class GenerateApplicationRequest(
-    val jobId: String,
-    val resumeText: String
-)
-
-@Serializable
-data class GenerateApplicationResponse(
-    val tailoredBullets: List<String>,
-    val coverLetter: String
-)

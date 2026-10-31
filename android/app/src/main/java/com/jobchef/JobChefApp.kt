@@ -5,8 +5,10 @@ import androidx.work.Configuration
 import com.jobchef.core.database.di.databaseModule
 import com.jobchef.core.network.di.networkModule
 import com.jobchef.feature.discovery.di.discoveryModule
+import com.jobchef.feature.onboarding.di.onboardingModule
 import com.jobchef.feature.resume.di.resumeModule
 import com.jobchef.feature.saved.di.savedModule
+import com.jobchef.feature.tailor.di.tailorModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.workmanager.factory.KoinWorkerFactory
 import org.koin.androidx.workmanager.koin.workManagerFactory
@@ -28,9 +30,11 @@ class JobChefApp : Application(), Configuration.Provider {
                 networkModule,
                 databaseModule,
                 // feature presentation modules
+                onboardingModule,
                 discoveryModule,
                 resumeModule,
-                savedModule
+                savedModule,
+                tailorModule
             )
         }
     }

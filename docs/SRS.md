@@ -1,48 +1,38 @@
-# Software Requirements Specification (SRS)
+# Software requirements: Job Chef V1
 
-**Project Name:** The Offline-First Agentic Job Matcher  
-**Architecture:** Native Mobile Client + Event-Driven Microservices
+## Technology and runtime
 
-## 1. Technical Stack (BOM-Managed Strategy)
+| Layer | Configuration |
+|---|---|
+| Android | Kotlin 2.3.21, Android Gradle Plugin 9.2.0, Jetpack Compose BOM 2026.04.01, Room 2.8.4, WorkManager, Koin, PDFBox-Android |
+| Backend | Java 21, Spring Boot 3.5.7, Gradle 8.14.4, PostgreSQL/Flyway, Redis |
+| Async processing | PostgreSQL outbox -> Pub/Sub -> separate Cloud Run worker; local Pub/Sub emulator |
+| Document processing | On-device PDFBox text extraction and Android `PdfDocument` export; backend LaTeX preview compiled with `-no-shell-escape` and a 20-second timeout |
+| External services | Adzuna for live job search; Gemini API for structured application drafts; private GCS artifacts in live mode |
+| Local development | Docker Compose services: API, worker, PostgreSQL, Redis, Pub/Sub emulator; named artifact volume |
 
-| Layer | Technology | Target Version | Management Strategy |
-| :--- | :--- | :--- | :--- |
-| **Mobile Language** | Kotlin | 2.3.x | Managed via Gradle Version Catalogs (`libs.versions.toml`). |
-| **Mobile UI/DB** | Jetpack Compose / Room | BOM / 2.8.4 | Compose versions inherited from BOM. Room explicitly declared for FTS4 support. |
-| **Backend Language** | Java (LTS) | Java 25 | Unlocks Virtual Threads for concurrent Adzuna/Gemini calls. |
-| **Backend Framework** | Spring Boot | 4.0.6 | Fallback to 3.5.14 if milestone dependencies break. Parent POM manages all transitive deps. |
-| **Data & Migrations** | Hibernate / Flyway | v7.3 / 12.4 | Hibernate inherited from Spring Boot BOM. Flyway declared for strict schema versioning. |
-| **Cloud DevOps** | Google Cloud Platform | N/A | Cloud Run (Compute), Pub/Sub (Eventing), Secret Manager (Security). |
+Android compile SDK is 37, target SDK 36, and minimum SDK 29. Configure the local backend URL through Gradle property `jobChefApiBaseUrl` or environment variable `JOB_CHEF_API_BASE_URL`. Debug-only cleartext access is limited to emulator/loopback hosts; live builds must use HTTPS.
 
-## 2. API Integrations
+## API and ownership
 
-### 2.1 Adzuna API (Data Sourcing)
-* **Endpoint Target:** `GET /v1/api/jobs/{country}/search/1`
-* **Query Params:** `app_id`, `app_key`, `what` (Target Title), `where` (Location), `results_per_page`.
-* **Mapping Strategy:** Spring Boot will map the Adzuna JSON response natively to our `tailored_applications` table, capturing `redirect_url`, `salary_min`, and `description`.
+The public API is versioned under `/api/v1`. Device tokens are random, revocable 256-bit opaque values; only their SHA-256 hashes are persisted. Registration requires a limited-use enrollment-code hash. Token refresh rotates the credential. Device-owned resources are always selected with the authenticated device ID.
 
-### 2.2 Google Gemini API via Spring AI
-* **Model:** `gemini-1.5-flash`
-* **Execution:** Triggered only via Pub/Sub when a job status updates to `SAVED`. Utilizes Spring AI's `BeanOutputConverter` to force strict JSON output for the tailored resume.
+The OpenAPI contract is `api/v1/openapi.yaml`. Android DTOs and shared Java records must remain synchronized. Sanitized preview PDFs are streamed only after device ownership checks; buckets are not public and raw storage object keys are not returned.
 
-## 3. Security & Infrastructure Specs
+## Data and quotas
 
-### 3.1 Rate Limiting (Bucket4j)
-* **Implementation:** Bucket4j integrated into the Spring Boot API Gateway / Interceptor layer.
-* **Rules:** 
-    * **Mobile Ingestion/Sync API:** Limit users to X requests per minute based on IP or User ID to prevent DDoS and database exhaustion.
-    * **Adzuna Shield:** Implement a global application-level bucket to ensure the backend never exceeds Adzuna's free-tier hourly request limit, utilizing our Tier 1 Database Cache first.
+PostgreSQL stores devices, enrollment hashes, sanitized resume versions, public job listings, device decisions, applications, generated versions, quotas, outbox records, six-hour search-cache responses, and private preview keys. Redis stores search/global request counters and bounded worker leases. Flyway migrations are append-only for schema evolution.
 
-### 3.2 Secret Protection (GCP Secret Manager)
-* **Rule:** No `.env` files or `application.properties` containing raw keys will be committed to GitHub.
-* **Implementation:** The Spring Boot application will use the `spring-cloud-gcp-starter-secretmanager` dependency.
-* **Properties Mapping:** `application.properties` will reference secrets natively:
-```properties
-spring.ai.vertex.ai.gemini.api-key=${sm://GEMINI_API_KEY}
-adzuna.api.key=${sm://ADZUNA_API_KEY}
-```
+Default limits are 20 search results, five newly saved applications per device per day, one regeneration per job per day, 20 global generations per day, two concurrent generations, 50,000 resume characters, 20,000 job-description characters, 60,000 total generation-input characters, 24,000 output characters, and 10 outbox records per dispatch batch.
 
-### 3.3 Authorization & Identity
-* **Mobile to Backend:** API requests from the Android client must include a Bearer token (JWT or simple secure API Key) to prevent unauthorized endpoint execution.
-* **Database Security:** Auto-incrementing Integers (1, 2, 3) are strictly forbidden. All database primary keys must be UUIDv4 to prevent Insecure Direct Object Reference (IDOR) attacks (e.g., guessing another user's `generation_job_id`).
-* **CI/CD Security:** GitHub Actions will deploy to Google Cloud Run using Workload Identity Federation (WIF). No static JSON service accounts will be stored in GitHub Secrets.
+## Failure behavior
+
+Missing credentials/providers produce explicit errors. Redis failure blocks guarded operations rather than bypassing quotas. Pub/Sub publication uses a durable outbox; the worker uses a lease, bounded retries, duplicate-safe version writes, and scheduled stale-lease recovery. Synthetic fixtures are enabled only by `demo`; they are not a live-provider fallback.
+
+## Privacy and retention
+
+Only reviewed sanitized resume text is uploaded. Contact details and source PDFs stay local; generated content is checked for obvious contact data, but no heuristic can prove anonymization. Search-cache entries expire after six hours; successfully published outbox rows are pruned after seven days; live preview artifacts expire after 90 days and are also deleted after application/resume deletion when storage is available. Final personalized PDFs remain on-device unless explicitly shared.
+
+## Verification state
+
+Automated source tests exist but were not run in this checkout. Android/database migration, service integration, PDF layout, emulator, live API, and cloud acceptance are pending as described in `CURRENT_STATUS.md`.

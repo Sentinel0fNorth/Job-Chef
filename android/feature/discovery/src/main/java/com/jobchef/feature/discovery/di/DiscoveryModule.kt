@@ -6,6 +6,6 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val discoveryModule = module {
-    viewModel { SearchViewModel(repository = get(), workManager = get()) }
+    viewModel { SearchViewModel(repository = get()) }
     viewModel { SwipeDeckViewModel(repository = get()) }
 }

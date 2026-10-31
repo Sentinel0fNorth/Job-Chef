@@ -1,0 +1,21 @@
+FROM gradle:8.14.4-jdk21 AS build
+WORKDIR /workspace
+COPY . .
+RUN gradle --no-daemon :worker:bootJar
+
+FROM eclipse-temurin:21-jre
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        curl texlive-latex-base texlive-latex-recommended lmodern \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system jobchef \
+    && useradd --system --gid jobchef --home-dir /app --no-create-home jobchef \
+    && mkdir -p /app /var/lib/jobchef/artifacts \
+    && chown -R jobchef:jobchef /app /var/lib/jobchef
+WORKDIR /app
+COPY --from=build /workspace/worker/build/libs/worker-1.0.0.jar /app/app.jar
+RUN chown jobchef:jobchef /app/app.jar
+USER jobchef:jobchef
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=65"
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

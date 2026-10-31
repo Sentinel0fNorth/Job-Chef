@@ -20,6 +20,8 @@
 **/.externalNativeBuild
 **/.cxx/
 **/.kotlin/
+# Keep the debug-only loopback network policy in the transferable source tree.
+!android/app/src/debug/
 *.jks
 *.keystore
 google-services.json
@@ -32,7 +34,8 @@ Thumbs.db
 # Environment and Secrets
 .env
 .env.*
-! .env.example
+!.env.example
+.jobchef/
 
 # Agent and Prototypes
 .agent_skills/

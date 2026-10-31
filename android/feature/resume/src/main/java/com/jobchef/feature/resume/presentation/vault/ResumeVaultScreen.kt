@@ -14,20 +14,32 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,75 +52,102 @@ import com.jobchef.core.designsystem.theme.JobMatcherTheme
 
 data class ResumeVaultState(
     val resumes: List<ResumeItemState> = emptyList(),
-    val parsedText: String? = null
+    val pendingDraft: ResumeDraft? = null,
+    val titleDraft: String = "",
+    val sanitizedTextDraft: String = "",
+    val contactNameDraft: String = "",
+    val contactEmailDraft: String = "",
+    val contactPhoneDraft: String = "",
+    val contactLocationDraft: String = "",
+    val isImporting: Boolean = false,
+    val isSaving: Boolean = false,
+    val errorMessage: String? = null
 )
 
 data class ResumeItemState(
+    val id: String,
     val title: String,
     val updated: String,
     val tags: List<String>,
     val active: Boolean,
-    val experience: String = "3.2 yrs experience",
-    val jobMatches: Int = 218
+    val syncPending: Boolean,
+    val characterCount: Int
 )
 
-val dummyResumeState = ResumeVaultState(
-    resumes = listOf(
-        ResumeItemState(
-            title = "SDE Backend",
-            updated = "Updated 2d ago",
-            tags = listOf("Java", "Spring Boot", "Postgres", "AWS"),
-            active = true
-        ),
-        ResumeItemState(
-            title = "Android Native",
-            updated = "Updated 1w ago",
-            tags = listOf("Kotlin", "Compose", "Coroutines"),
-            active = false
-        ),
-        ResumeItemState(
-            title = "Full-Stack Generalist",
-            updated = "Updated 3w ago",
-            tags = listOf("React", "Node", "TypeScript"),
-            active = false
-        )
-    )
-)
-
-/**
- * The main screen for the Resume Vault.
- * Displays a list of uploaded resumes and provides an upload area for new PDFs.
- *
- * @param state The current UI state representing the list of resumes.
- * @param onEvent Callback for handling MVI user actions.
- * @param modifier Modifier to be applied to the screen layout.
- */
 @Composable
 fun ResumeVaultScreen(
     state: ResumeVaultState,
     onEvent: (ResumeVaultEvent) -> Unit,
+    onPickPdf: () -> Unit,
+    onRevokeDevice: () -> Unit = {},
+    isRevokingDevice: Boolean = false,
+    deviceAccessError: String? = null,
     modifier: Modifier = Modifier
 ) {
+    var showRevokeConfirmation by remember { mutableStateOf(false) }
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Screen Header
         ScreenHeader(
             eyebrow = "01 — Vault",
             title = "The Resume Vault",
-            subtitle = "A curated archive of your professional identities.",
+            subtitle = "Your source files and contact details stay on this device.",
             modifier = Modifier.padding(top = 48.dp, start = 24.dp, end = 24.dp, bottom = 32.dp)
         )
+        TextButton(
+            onClick = { showRevokeConfirmation = true },
+            enabled = !isRevokingDevice,
+            modifier = Modifier.padding(horizontal = 24.dp)
+        ) { Text(if (isRevokingDevice) "Revoking device access…" else "Revoke device access") }
+        deviceAccessError?.let { message ->
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+        }
 
-        // Upload area
         UploadArea(
-            onUploadClicked = { onEvent(ResumeVaultEvent.OnUploadPdfClicked) },
+            onUploadClicked = onPickPdf,
+            isImporting = state.isImporting,
             modifier = Modifier.padding(horizontal = 24.dp)
         )
+        state.errorMessage?.let { message ->
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp)
+            )
+        }
 
-        // Cards list
+        if (showRevokeConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showRevokeConfirmation = false },
+                title = { Text("Revoke this device?") },
+                text = {
+                    Text(
+                        "The server credential will be revoked and this app will return to enrollment. Local resumes remain on this device; a new enrollment code is required to sync again."
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showRevokeConfirmation = false
+                            onRevokeDevice()
+                        },
+                        enabled = !isRevokingDevice
+                    ) { Text("Revoke device") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRevokeConfirmation = false }) { Text("Cancel") }
+                }
+            )
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -124,42 +163,126 @@ fun ResumeVaultScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             }
-
-            items(state.resumes) { resume ->
+            if (state.resumes.isEmpty()) {
+                item {
+                    Text(
+                        text = "No resumes yet. Import a text-based PDF to create your on-device vault.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            items(state.resumes, key = { it.id }) { resume ->
                 ResumeCard(
                     resume = resume,
-                    onClick = { onEvent(ResumeVaultEvent.OnSetActive(resume.title)) }
+                    onClick = { onEvent(ResumeVaultEvent.OnSetActive(resume.id)) },
+                    onDelete = { onEvent(ResumeVaultEvent.OnDelete(resume.id)) }
                 )
             }
         }
     }
+
+    val draft = state.pendingDraft
+    if (draft != null) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!state.isSaving) onEvent(ResumeVaultEvent.OnDiscardReview)
+            },
+            title = { Text("Review before sync") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 560.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Only the reviewed, sanitized text is uploaded. The original PDF and detected contact details remain local.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    OutlinedTextField(
+                        value = state.titleDraft,
+                        onValueChange = { onEvent(ResumeVaultEvent.OnTitleChanged(it)) },
+                        label = { Text("Resume title") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = state.contactNameDraft,
+                        onValueChange = { onEvent(ResumeVaultEvent.OnContactNameChanged(it)) },
+                        label = { Text("Name (kept on device)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = state.contactEmailDraft,
+                        onValueChange = { onEvent(ResumeVaultEvent.OnContactEmailChanged(it)) },
+                        label = { Text("Email (kept on device)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = state.contactPhoneDraft,
+                        onValueChange = { onEvent(ResumeVaultEvent.OnContactPhoneChanged(it)) },
+                        label = { Text("Phone (kept on device)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = state.contactLocationDraft,
+                        onValueChange = { onEvent(ResumeVaultEvent.OnContactLocationChanged(it)) },
+                        label = { Text("Location (kept on device)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = state.sanitizedTextDraft,
+                        onValueChange = { onEvent(ResumeVaultEvent.OnSanitizedTextChanged(it)) },
+                        label = { Text("Sanitized resume text") },
+                        minLines = 8,
+                        maxLines = 12,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    state.errorMessage?.let { error ->
+                        Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { onEvent(ResumeVaultEvent.OnSaveReview) },
+                    enabled = !state.isSaving && state.titleDraft.isNotBlank() && state.sanitizedTextDraft.length >= 80
+                ) {
+                    if (state.isSaving) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Save on device")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { onEvent(ResumeVaultEvent.OnDiscardReview) },
+                    enabled = !state.isSaving
+                ) { Text("Discard") }
+            }
+        )
+    }
 }
 
-
-
-
-/**
- * Interactive upload area for importing new PDF resumes.
- *
- * @param onUploadClicked Callback when the upload area is clicked.
- * @param modifier Modifier to be applied to the layout.
- */
 @Composable
 fun UploadArea(
     onUploadClicked: () -> Unit,
+    isImporting: Boolean,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                shape = MaterialTheme.shapes.medium
-            )
+            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surface)
-            .clickable { onUploadClicked() }
+            .clickable(enabled = !isImporting) { onUploadClicked() }
             .padding(vertical = 24.dp, horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -170,26 +293,26 @@ fun UploadArea(
                 .background(MaterialTheme.colorScheme.primary),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.FileUpload,
-                contentDescription = "Upload PDF",
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(20.dp)
-            )
+            if (isImporting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Icon(Icons.Default.FileUpload, "Choose PDF", tint = MaterialTheme.colorScheme.onPrimary)
+            }
         }
-        
-        Spacer(modifier = Modifier.width(16.dp))
-        
-        Column {
+        Column(modifier = Modifier.padding(start = 16.dp)) {
             Text(
-                text = "Upload a new PDF",
+                text = if (isImporting) "Reading PDF…" else "Import a text-based PDF",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Parsed in seconds. Indexed instantly.",
+                text = "Up to 10 MB and 20 pages · no OCR",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -197,18 +320,12 @@ fun UploadArea(
     }
 }
 
-/**
- * Displays an individual resume card with its metadata, tags, and matching stats.
- *
- * @param resume The state representing the details of the resume.
- * @param onClick Callback when the resume card is clicked.
- * @param modifier Modifier to be applied to the card layout.
- */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ResumeCard(
     resume: ResumeItemState,
     onClick: () -> Unit,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -216,12 +333,12 @@ fun ResumeCard(
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
             .border(
-                width = 1.dp,
-                color = if (resume.active) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.05f),
-                shape = MaterialTheme.shapes.medium
+                1.dp,
+                if (resume.active) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.05f),
+                MaterialTheme.shapes.medium
             )
             .background(MaterialTheme.colorScheme.surface)
-            .clickable { onClick() }
+            .clickable(onClick = onClick)
             .padding(20.dp)
     ) {
         Row(
@@ -229,121 +346,60 @@ fun ResumeCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(MaterialTheme.shapes.small)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Description,
-                        contentDescription = "Resume File",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Description, contentDescription = "Resume", tint = MaterialTheme.colorScheme.primary)
                 Column {
-                    Text(
-                        text = resume.title,
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Text(resume.title, style = MaterialTheme.typography.headlineSmall)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = resume.updated,
+                        text = "${resume.updated} · ${if (resume.syncPending) "saved on device, sync pending" else "synced"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-            
-            Icon(
-                imageVector = Icons.Default.MoreHoriz,
-                contentDescription = "More Options",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .size(24.dp)
-                    .clickable { }
-            )
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.DeleteOutline, contentDescription = "Delete resume")
+            }
         }
-        
+
         if (resume.active) {
-            Spacer(modifier = Modifier.height(20.dp))
-            
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                resume.tags.forEach { tag ->
-                    Box(
-                        modifier = Modifier
-                            .clip(MaterialTheme.shapes.small)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = tag,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = "ACTIVE RESUME · ${resume.characterCount} sanitized characters",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+            if (resume.tags.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    resume.tags.forEach { tag ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                        ) {
+                            Text(tag, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
             }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(MaterialTheme.colorScheme.surface)
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(50)
-                        )
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = resume.experience,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(MaterialTheme.colorScheme.primary)
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "${resume.jobMatches} job matches",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-            }
+        } else {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text("Tap to make active", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun ResumeVaultScreenPreview() {
+private fun ResumeVaultScreenPreview() {
     JobMatcherTheme {
-        ResumeVaultScreen(
-            state = dummyResumeState,
-            onEvent = {}
-        )
+        ResumeVaultScreen(state = ResumeVaultState(), onEvent = {}, onPickPdf = {})
     }
 }

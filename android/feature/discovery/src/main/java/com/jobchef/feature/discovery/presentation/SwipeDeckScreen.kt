@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -140,18 +141,28 @@ fun SwipeDeckScreen(
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
-                    text = "No unseen dossiers.",
+                    text = if (state.isLoading) "Loading saved opportunities…" else "No unseen opportunities.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color(0xFF7D7D7D),
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Scanning the network for your next batch.\nThey will appear here automatically when secured.",
+                    text = if (state.isLoading) "Your saved job batch is loading." else "Run a search to fetch another batch of up to 20 jobs.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFF7D7D7D).copy(alpha = 0.7f),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
+                state.error?.let { error ->
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(error, color = MaterialTheme.colorScheme.error, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
+                if (state.canUndo) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Button(onClick = { onEvent(SwipeDeckEvent.OnRewind) }) {
+                        Text("Undo last decision")
+                    }
+                }
             }
         } else {
             // Progress segments
@@ -309,9 +320,9 @@ fun SwipeDeckScreen(
                         modifier = Modifier.size(22.dp)
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.width(20.dp))
-                
+
                 // Accept Button
                 Box(
                     modifier = Modifier
@@ -339,9 +350,9 @@ fun SwipeDeckScreen(
                         modifier = Modifier.size(24.dp)
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.width(20.dp))
-                
+
                 // Rewind Button
                 Box(
                     modifier = Modifier
@@ -350,7 +361,7 @@ fun SwipeDeckScreen(
                         .background(Color.White.copy(alpha = 0.1f))
                         .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
                         .clickable {
-                            if (!isSwipingAway && currentIndex > 0) {
+                            if (!isSwipingAway && state.canUndo) {
                                 scope.launch {
                                     isSwipingAway = true
                                     onEvent(SwipeDeckEvent.OnRewind)

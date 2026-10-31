@@ -1,6 +1,7 @@
 package com.jobchef.core.database.entity
 
 import androidx.room.Entity
+import androidx.room.ColumnInfo
 import androidx.room.PrimaryKey
 import com.jobchef.core.domain.model.JobStatus
 
@@ -26,11 +27,16 @@ data class JobEntity(
     val snippet: String,
     val salaryMin: Double?,
     val salaryMax: Double?,
+    val salaryCurrency: String? = null,
     val redirectUrl: String,
     /** Comma-separated list of extracted skills. */
     val skills: String,
     val workMode: String,
+    @ColumnInfo(defaultValue = "0") val matchScore: Int = 0,
+    @ColumnInfo(defaultValue = "''") val matchMethod: String = "",
     /** Persisted via Converters as a string matching the enum name exactly. */
     val status: JobStatus,
+    @ColumnInfo(defaultValue = "0") val decisionRevision: Long = 0,
+    @ColumnInfo(defaultValue = "1") val inCurrentBatch: Boolean = true,
     val createdAt: Long
 )

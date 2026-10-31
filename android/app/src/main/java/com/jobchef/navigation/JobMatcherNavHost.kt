@@ -1,5 +1,7 @@
 package com.jobchef.navigation
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -22,6 +24,9 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun JobMatcherNavHost(
     navController: NavHostController,
+    onRevokeDevice: () -> Unit = {},
+    isRevokingDevice: Boolean = false,
+    deviceAccessError: String? = null,
     modifier: Modifier = Modifier
 ) {
     NavHost(
@@ -32,9 +37,23 @@ fun JobMatcherNavHost(
         composable<Screen.Vault> {
             val viewModel: ResumeVaultViewModel = koinViewModel()
             val state by viewModel.state.collectAsState()
+            val pdfPicker = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.OpenDocument(),
+                onResult = { uri ->
+                    if (uri != null) {
+                        viewModel.onEvent(
+                            com.jobchef.feature.resume.presentation.vault.ResumeVaultEvent.OnPdfSelected(uri)
+                        )
+                    }
+                }
+            )
             ResumeVaultScreen(
                 state = state,
-                onEvent = viewModel::onEvent
+                onEvent = viewModel::onEvent,
+                onPickPdf = { pdfPicker.launch(arrayOf("application/pdf")) },
+                onRevokeDevice = onRevokeDevice,
+                isRevokingDevice = isRevokingDevice,
+                deviceAccessError = deviceAccessError
             )
         }
 
@@ -44,9 +63,7 @@ fun JobMatcherNavHost(
             SearchScreen(
                 state = state,
                 onEvent = viewModel::onEvent,
-                onSearchClicked = {
-                    navController.navigate(Screen.SwipeDeck)
-                }
+                onSearchClicked = { viewModel.search { navController.navigate(Screen.SwipeDeck) } }
             )
         }
 

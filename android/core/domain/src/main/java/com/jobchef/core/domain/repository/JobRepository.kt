@@ -22,6 +22,8 @@ interface JobRepository {
      */
     fun getSavedJobs(): Flow<List<Job>>
 
+    fun observeActiveResumeTitle(): Flow<String?>
+
     /**
      * Returns only UNSEEN jobs for the Swipe Deck, capped at 20 for mobile performance.
      */
@@ -29,7 +31,7 @@ interface JobRepository {
 
     /**
      * Keyword search over job title, company, snippet, and skills.
-     * Currently implemented as a SQL LIKE query; will be upgraded to FTS5 in Phase 7.
+     * Implemented as a SQL LIKE query, which is sufficient for the finite V1 dataset.
      */
     fun searchJobs(query: String): Flow<List<Job>>
 
@@ -43,5 +45,10 @@ interface JobRepository {
      * Fetches a fresh batch from the backend and replaces the local cache.
      * Respects the JIT batch limit (15-20 jobs) from the CONCEPT doc.
      */
-    suspend fun refreshJobBatch(query: String, location: String)
+    suspend fun refreshJobBatch(
+        query: String,
+        location: String,
+        keywords: String = "",
+        workMode: String? = null
+    )
 }

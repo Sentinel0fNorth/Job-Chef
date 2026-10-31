@@ -23,8 +23,9 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:domain"))
+    implementation(project(":core:database"))
     implementation(project(":core:design-system"))
+    implementation(project(":core:network"))
 
     implementation(libs.androidx.core.ktx)
     implementation(platform(libs.androidx.compose.bom))
@@ -35,5 +36,6 @@ dependencies {
 
     // Koin (for koinViewModel in composables)
     implementation(platform(libs.koin.bom))
+    implementation(libs.koin.android)
     implementation(libs.koin.compose.viewmodel)
 }

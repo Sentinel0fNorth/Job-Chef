@@ -1,0 +1,10 @@
+[
+  {
+    "name": "delete-images-older-than-30-days",
+    "action": { "type": "Delete" },
+    "condition": {
+      "tagState": "ANY",
+      "olderThan": "30d"
+    }
+  }
+]

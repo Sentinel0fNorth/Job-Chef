@@ -3,6 +3,10 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+val configuredApiBaseUrl = providers.gradleProperty("jobChefApiBaseUrl")
+    .orElse(providers.environmentVariable("JOB_CHEF_API_BASE_URL"))
+    .getOrElse("https://jobchef-api.example.invalid/")
+
 android {
     namespace = "com.jobchef.core.network"
     compileSdk = 37
@@ -10,6 +14,11 @@ android {
     defaultConfig {
         minSdk = 29
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "API_BASE_URL", "\"$configuredApiBaseUrl\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     compileOptions {
@@ -25,7 +34,6 @@ dependencies {
     // Networking
     implementation(platform(libs.okhttp.bom))
     implementation(libs.okhttp)
-    implementation(libs.okhttp.logging.interceptor)
     implementation(libs.retrofit.core)
     implementation(libs.retrofit.converter.gson)
     implementation(libs.kotlinx.serialization.json)

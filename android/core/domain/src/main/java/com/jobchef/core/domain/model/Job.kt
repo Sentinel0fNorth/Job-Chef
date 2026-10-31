@@ -12,10 +12,14 @@ data class Job(
     val description: String,
     val salaryMin: Double?,
     val salaryMax: Double?,
+    val salaryCurrency: String? = null,
     val redirectUrl: String,
     val skills: List<String>,        // Extracted deterministically by backend
     val workMode: WorkMode,          // Extracted deterministically by backend
+    val matchScore: Int = 0,
+    val matchMethod: String = "",
     val status: JobStatus = JobStatus.UNSEEN,
+    val decisionRevision: Long = 0,
     val createdAt: Long = System.currentTimeMillis()
 )
 

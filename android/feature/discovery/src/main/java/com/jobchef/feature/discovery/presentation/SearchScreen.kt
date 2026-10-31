@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -69,7 +70,7 @@ fun SearchScreen(
         ScreenHeader(
             eyebrow = "02 — Discovery",
             title = "Define the brief.",
-            subtitle = "Tell the agent what you want. It searches across 14 boards in the background.",
+            subtitle = "Search Adzuna listings for a role and location. Results are limited to 20 per search.",
             modifier = Modifier.padding(top = 48.dp, start = 24.dp, end = 24.dp, bottom = 24.dp)
         )
 
@@ -123,14 +124,18 @@ fun SearchScreen(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "Active resume: ${state.activeResumeName}",
+                        text = state.activeResumeName?.let { "Active resume: $it" } ?: "No active resume selected",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Used to score every result against your profile.",
+                        text = if (state.activeResumeName == null) {
+                            "Add a resume in the Vault before tailoring saved jobs."
+                        } else {
+                            "Used for tailoring after you save a job."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -145,7 +150,7 @@ fun SearchScreen(
                 .fillMaxWidth()
         ) {
             Text(
-                text = "SUGGESTED FILTERS",
+                text = "WORK MODE",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 12.dp)
@@ -174,12 +179,18 @@ fun SearchScreen(
             }
         }
 
-        // Search Button
+        state.errorMessage?.let { message ->
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp)
+            )
+        }
+
         Button(
-            onClick = {
-                onEvent(SearchEvent.OnSubmitSearch)
-                onSearchClicked()
-            },
+            onClick = onSearchClicked,
+            enabled = !state.isLoading,
             modifier = Modifier
                 .padding(top = 40.dp, start = 24.dp, end = 24.dp)
                 .fillMaxWidth()
@@ -189,17 +200,21 @@ fun SearchScreen(
             ),
             shape = RoundedCornerShape(50) // Pill shape
         ) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Search ${state.matchedRolesCount} matched roles",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
+            if (state.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Search jobs",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }

@@ -16,7 +16,7 @@ interface JobDao {
     fun getAllJobs(): Flow<List<JobEntity>>
 
     /** UNSEEN jobs only, oldest first, capped at 20 — the Swipe Deck feed. */
-    @Query("SELECT * FROM jobs WHERE status = 'UNSEEN' ORDER BY createdAt ASC LIMIT 20")
+    @Query("SELECT * FROM jobs WHERE status = 'UNSEEN' AND inCurrentBatch = 1 ORDER BY createdAt ASC, id ASC LIMIT 20")
     fun getUnseenJobs(): Flow<List<JobEntity>>
 
     /** SAVED jobs only, newest first — the Saved Opportunities screen. */
@@ -25,12 +25,6 @@ interface JobDao {
 
     /**
      * Keyword search across title, company, snippet, and skills using SQL LIKE.
-     *
-     * NOTE: FTS5 full-text search is deferred to Phase 7 due to a Room 2.8.4 + KSP
-     * limitation with content-backed FTS entities. This LIKE query is functionally
-     * correct for the current data-set size and will be replaced with
-     * `jobs_fts MATCH :query` once the KSP issue is resolved.
-     *
      * The query wraps [query] with `%` wildcards — callers should pass the raw keyword.
      */
     @Query(
@@ -45,12 +39,40 @@ interface JobDao {
     )
     fun searchJobs(query: String): Flow<List<JobEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertJobs(jobs: List<JobEntity>)
+    @Query("SELECT * FROM jobs WHERE id = :jobId LIMIT 1")
+    suspend fun getJob(jobId: String): JobEntity?
 
-    @Query("UPDATE jobs SET status = :status WHERE id = :jobId")
-    suspend fun updateJobStatus(jobId: String, status: JobStatus)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertMissingJobs(jobs: List<JobEntity>)
 
-    @Query("DELETE FROM jobs WHERE status != 'SAVED'")
-    suspend fun clearNonSavedJobs()
+    @Query("""
+        UPDATE jobs SET title = :title, company = :company, location = :location,
+            snippet = :snippet, salaryMin = :salaryMin, salaryMax = :salaryMax,
+            salaryCurrency = :salaryCurrency, redirectUrl = :redirectUrl,
+            skills = :skills, workMode = :workMode, matchScore = :matchScore,
+            matchMethod = :matchMethod, inCurrentBatch = 1, createdAt = :createdAt
+        WHERE id = :id
+    """)
+    suspend fun updateListing(
+        id: String,
+        title: String,
+        company: String,
+        location: String,
+        snippet: String,
+        salaryMin: Double?,
+        salaryMax: Double?,
+        salaryCurrency: String?,
+        redirectUrl: String,
+        skills: String,
+        workMode: String,
+        matchScore: Int,
+        matchMethod: String,
+        createdAt: Long
+    )
+
+    @Query("UPDATE jobs SET inCurrentBatch = 0")
+    suspend fun clearCurrentBatch()
+
+    @Query("UPDATE jobs SET status = :status, decisionRevision = :revision WHERE id = :jobId")
+    suspend fun updateJobDecision(jobId: String, status: JobStatus, revision: Long)
 }

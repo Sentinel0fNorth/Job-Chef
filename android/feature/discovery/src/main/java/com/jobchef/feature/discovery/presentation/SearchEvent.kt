@@ -5,5 +5,4 @@ sealed interface SearchEvent {
     data class OnLocationChanged(val location: String) : SearchEvent
     data class OnKeywordsChanged(val keywords: String) : SearchEvent
     data class OnFilterToggled(val filter: String) : SearchEvent
-    data object OnSubmitSearch : SearchEvent
 }

@@ -2,6 +2,7 @@ package com.jobchef.feature.discovery.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import com.jobchef.core.domain.model.JobStatus
 import com.jobchef.core.domain.repository.JobRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ class SwipeDeckViewModel(
 
     private val _state = MutableStateFlow(SwipeDeckState(isLoading = true))
     val state: StateFlow<SwipeDeckState> = _state.asStateFlow()
+    private var lastSwipedJobId: String? = null
 
     init {
         observeUnseenJobs()
@@ -39,6 +41,7 @@ class SwipeDeckViewModel(
                 _state.update { it.copy(jobs = jobs, isLoading = false, error = null) }
             }
             .catch { e ->
+                if (e is CancellationException) throw e
                 _state.update { it.copy(isLoading = false, error = e.message) }
             }
             .launchIn(viewModelScope)
@@ -48,25 +51,37 @@ class SwipeDeckViewModel(
         when (event) {
             SwipeDeckEvent.OnLike -> swipeCurrentCard(JobStatus.SAVED)
             SwipeDeckEvent.OnReject -> swipeCurrentCard(JobStatus.REJECTED)
-            SwipeDeckEvent.OnRewind -> {
-                _state.update { state ->
-                    val prevIndex = (state.currentIndex - 1).coerceAtLeast(0)
-                    state.copy(currentIndex = prevIndex)
-                }
-            }
+            SwipeDeckEvent.OnRewind -> rewind()
         }
     }
 
     private fun swipeCurrentCard(newStatus: JobStatus) {
         val currentJob = _state.value.jobs.getOrNull(_state.value.currentIndex) ?: return
         viewModelScope.launch {
-            // Advance index optimistically for instant UI response.
-            _state.update { state ->
-                val nextIndex = (state.currentIndex + 1).coerceAtMost(state.jobs.size)
-                state.copy(currentIndex = nextIndex)
+            try {
+                repository.updateJobStatus(currentJob.id, newStatus)
+                lastSwipedJobId = currentJob.id
+                _state.update { it.copy(canUndo = true, error = null) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _state.update { it.copy(error = "The decision could not be saved on this device.") }
             }
-            // Persist the status change — Room will emit a new list which resets the index.
-            repository.updateJobStatus(currentJob.id, newStatus)
+        }
+    }
+
+    private fun rewind() {
+        val jobId = lastSwipedJobId ?: return
+        viewModelScope.launch {
+            try {
+                repository.updateJobStatus(jobId, JobStatus.UNSEEN)
+                lastSwipedJobId = null
+                _state.update { it.copy(canUndo = false, error = null) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _state.update { it.copy(error = "The last decision could not be undone.") }
+            }
         }
     }
 }

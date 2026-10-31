@@ -1,0 +1,462 @@
+openapi: 3.1.0
+info:
+  title: Job Chef API
+  version: 1.0.0
+  description: >
+    Versioned device-authenticated API. Live integrations are credential-gated;
+    local fixtures are available only in the explicitly selected demo profile.
+servers:
+  - url: https://{apiHost}
+    variables:
+      apiHost:
+        default: api.example.invalid
+security:
+  - DeviceBearer: []
+paths:
+  /api/v1/auth/register:
+    post:
+      security: []
+      summary: Register a device using a provisioned, limited-use enrollment code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enrollmentCode]
+              properties:
+                enrollmentCode:
+                  type: string
+                  writeOnly: true
+                  maxLength: 200
+      responses:
+        "200":
+          description: The access token is returned once and must be stored securely on-device.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceCredentials"
+        "401":
+          $ref: "#/components/responses/ApiError"
+  /api/v1/auth/refresh:
+    post:
+      summary: Rotate this device's bearer token
+      responses:
+        "200":
+          description: New device credential; the previous token is immediately invalidated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceCredentials"
+        "401":
+          $ref: "#/components/responses/ApiError"
+  /api/v1/auth/revoke:
+    post:
+      summary: Revoke this device credential
+      responses:
+        "204":
+          description: Device credential revoked.
+  /api/v1/resumes:
+    get:
+      summary: List this device's resume metadata
+      responses:
+        "200":
+          description: Resume metadata; sanitized text is never included in list responses.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Resume"
+    post:
+      summary: Upload reviewed, sanitized text from a text-based PDF
+      description: Contact details and source PDF remain on-device and must not be sent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clientKey, displayName, sanitizedText, active]
+              properties:
+                clientKey:
+                  type: string
+                  maxLength: 80
+                  description: Client-generated idempotency key for safe offline retries.
+                displayName:
+                  type: string
+                  maxLength: 120
+                sanitizedText:
+                  type: string
+                  maxLength: 50000
+                  description: User-reviewed text with identifying/contact fields removed on-device.
+                active:
+                  type: boolean
+      responses:
+        "201":
+          description: Resume version created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resume"
+        "400":
+          $ref: "#/components/responses/ApiError"
+  /api/v1/resumes/{resumeId}/active:
+    put:
+      summary: Select the active resume version for this device
+      parameters:
+        - $ref: "#/components/parameters/ResumeId"
+      responses:
+        "204":
+          description: Active resume changed.
+        "404":
+          $ref: "#/components/responses/ApiError"
+  /api/v1/resumes/{resumeId}:
+    delete:
+      summary: Delete this device's resume
+      parameters:
+        - $ref: "#/components/parameters/ResumeId"
+      responses:
+        "204":
+          description: Resume deleted.
+        "409":
+          description: Resume and any tailored applications based on it are removed; saved job decisions remain.
+  /api/v1/discovery/search:
+    post:
+      summary: Search a finite Adzuna job batch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  maxLength: 120
+                location:
+                  type: string
+                  maxLength: 120
+                keywords:
+                  type: string
+                  maxLength: 300
+                country:
+                  type: string
+                  pattern: "^[A-Za-z]{2}$"
+                workMode:
+                  type: string
+                  enum: [REMOTE, HYBRID, ON_SITE, UNKNOWN]
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 20
+      responses:
+        "200":
+          description: Up to 20 listings with deterministic match explanations and Adzuna attribution.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "429":
+          $ref: "#/components/responses/ApiError"
+  /api/v1/decisions:
+    post:
+      summary: Submit one job decision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Decision"
+      responses:
+        "200":
+          description: Idempotent decision accepted or identified as stale.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResponse"
+  /api/v1/decisions/sync:
+    post:
+      summary: Synchronize a bounded offline decision outbox
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decisions]
+              properties:
+                decisions:
+                  type: array
+                  maxItems: 100
+                  items:
+                    $ref: "#/components/schemas/Decision"
+      responses:
+        "200":
+          description: Per-item synchronization result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResponse"
+  /api/v1/applications/by-job/{jobId}:
+    get:
+      summary: Read generation state and content for a saved job
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Current application version; may be queued, processing, ready, blocked, or failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Application"
+        "404":
+          $ref: "#/components/responses/ApiError"
+    delete:
+      summary: Delete an application and its generated versions for this device
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "204":
+          description: Application deleted.
+  /api/v1/applications/by-job/{jobId}/preview:
+    get:
+      summary: Read the private sanitized PDF preview for this device's ready application
+      description: Requires device authentication and ownership. Final personalized documents are generated on-device.
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: A sanitized, selectable-text PDF. The object is never publicly accessible.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: private, no-store
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/ApiError"
+  /api/v1/applications/by-job/{jobId}/regenerate:
+    post:
+      summary: Explicit daily regeneration request
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "202":
+          description: Regeneration was queued.
+        "429":
+          $ref: "#/components/responses/ApiError"
+  /api/v1/applications/{applicationId}:
+    get:
+      summary: Read an application owned by this device
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Generation state and persisted content.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Application"
+        "404":
+          $ref: "#/components/responses/ApiError"
+components:
+  securitySchemes:
+    DeviceBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+      description: Random 256-bit revocable per-device credential. Never embed in the APK.
+  parameters:
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ResumeId:
+      name: resumeId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    ApiError:
+      description: Explicit API error with a request correlation ID.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    DeviceCredentials:
+      type: object
+      required: [deviceId, accessToken, expiresAt]
+      properties:
+        deviceId:
+          type: string
+          format: uuid
+        accessToken:
+          type: string
+          writeOnly: true
+        expiresAt:
+          type: string
+          format: date-time
+    Resume:
+      type: object
+      required: [id, version, displayName, active, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        displayName:
+          type: string
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    Job:
+      type: object
+      required: [id, title, company, location, description, redirectUrl, skills, workMode, matchMethod]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        company:
+          type: string
+        location:
+          type: string
+        description:
+          type: string
+          maxLength: 20000
+        salaryMin:
+          type: number
+          nullable: true
+        salaryMax:
+          type: number
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+        redirectUrl:
+          type: string
+          format: uri
+        skills:
+          type: array
+          items:
+            type: string
+        workMode:
+          type: string
+          enum: [REMOTE, HYBRID, ON_SITE, UNKNOWN]
+        matchMethod:
+          type: string
+    SearchResponse:
+      type: object
+      required: [jobs, attribution, fetchedAt]
+      properties:
+        jobs:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/Job"
+        attribution:
+          type: string
+        fetchedAt:
+          type: string
+          format: date-time
+    Decision:
+      type: object
+      required: [jobId, idempotencyKey, revision, status]
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        idempotencyKey:
+          type: string
+          maxLength: 80
+        revision:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [SAVED, REJECTED, UNSEEN]
+    SyncResponse:
+      type: object
+      required: [accepted, stale, errors]
+      properties:
+        accepted:
+          type: integer
+        stale:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
+    Application:
+      type: object
+      required: [id, jobId, resumeVersion, status, generationVersion, demoMode, previewAvailable, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        jobId:
+          type: string
+          format: uuid
+        resumeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Remote resume version used for generation; contact details are never included.
+        resumeVersion:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [WAITING_FOR_RESUME, QUEUED, PROCESSING, READY, FAILED, QUOTA_BLOCKED, CANCELLED]
+        generationVersion:
+          type: integer
+        errorCode:
+          type: string
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+        resumeContent:
+          type: object
+          nullable: true
+        coverLetter:
+          type: string
+          nullable: true
+        demoMode:
+          type: boolean
+        previewAvailable:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string

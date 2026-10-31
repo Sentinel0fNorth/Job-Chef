@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,8 +40,11 @@ import com.jobchef.core.designsystem.theme.JobMatcherTheme
 
 data class SavedJobsState(
     val activeFilter: String = "All",
-    val filters: List<String> = listOf("All", "Ready", "Tailoring"),
-    val jobs: List<SavedJobItem> = emptyList()
+    val filters: List<String> = listOf("All", "In progress", "Ready", "Needs attention"),
+    val jobs: List<SavedJobItem> = emptyList(),
+    val isLoading: Boolean = true,
+    val isRefreshingStatus: Boolean = false,
+    val errorMessage: String? = null
 )
 
 data class SavedJobItem(
@@ -50,32 +54,11 @@ data class SavedJobItem(
     val logo: String,
     val location: String,
     val pay: String,
-    val status: JobStatus,
-    val matchScore: Int
+    val status: String,
+    val matchScore: Int,
+    val matchMethod: String
 )
 
-enum class JobStatus {
-    READY, TAILORING
-}
-
-val dummySavedJobsState = SavedJobsState(
-    jobs = listOf(
-        SavedJobItem("1", "Nimbus Labs", "SDE Intern", "N", "Jaipur · Hybrid", "₹40k/mo", JobStatus.READY, 94),
-        SavedJobItem("2", "Vector & Co.", "Backend Engineer I", "V", "Bangalore · On-site", "₹18 LPA", JobStatus.TAILORING, 88),
-        SavedJobItem("3", "Helio Systems", "Android Developer", "H", "Remote · Full-time", "₹14 LPA", JobStatus.READY, 91),
-        SavedJobItem("4", "Forge Bank", "Java Developer", "F", "Mumbai · Hybrid", "₹16 LPA", JobStatus.TAILORING, 82),
-        SavedJobItem("5", "Orbit Health", "Full-Stack Engineer", "O", "Remote · Contract", "$45/hr", JobStatus.READY, 87)
-    )
-)
-
-/**
- * Displays the list of saved job opportunities with filtering options.
- *
- * @param state The current UI state containing saved jobs and filters.
- * @param onEvent Callback to dispatch actions back to the ViewModel.
- * @param onJobDetailsClick Callback to trigger navigation when a card is clicked.
- * @param modifier Modifier for styling the layout.
- */
 @Composable
 fun SavedOpportunitiesScreen(
     state: SavedJobsState,
@@ -88,15 +71,13 @@ fun SavedOpportunitiesScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Screen Header
         ScreenHeader(
             eyebrow = "04 — Shortlist",
             title = "Saved opportunities",
-            subtitle = "Five roles in motion. Two ready to send.",
+            subtitle = "${state.jobs.size} saved job${if (state.jobs.size == 1) "" else "s"} · generation status is shown as reported by the backend.",
             modifier = Modifier.padding(top = 48.dp, start = 24.dp, end = 24.dp, bottom = 16.dp)
         )
 
-        // Filters
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -115,7 +96,7 @@ fun SavedOpportunitiesScreen(
                             shape = RoundedCornerShape(50)
                         )
                         .clickable { onEvent(SavedOpportunitiesEvent.OnFilterSelected(filter)) }
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -126,8 +107,35 @@ fun SavedOpportunitiesScreen(
                 }
             }
         }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            state.errorMessage?.let { message ->
+                Text(
+                    text = message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            TextButton(
+                onClick = { onEvent(SavedOpportunitiesEvent.OnRefreshStatuses) },
+                enabled = !state.isRefreshingStatus
+            ) {
+                Text(if (state.isRefreshingStatus) "Refreshing…" else "Refresh statuses")
+            }
+        }
 
-        // List
+        val filteredJobs = state.jobs.filter { job ->
+            when (state.activeFilter) {
+                "In progress" -> job.status in setOf("Waiting for resume", "Queued", "Tailoring")
+                "Ready" -> job.status == "Ready" || job.status == "Demo preview"
+                "Needs attention" -> job.status == "Failed" || job.status == "Daily limit reached"
+                else -> true
+            }
+        }
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -135,41 +143,34 @@ fun SavedOpportunitiesScreen(
             contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 112.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            val filteredJobs = if (state.activeFilter == "All") {
-                state.jobs
-            } else {
-                state.jobs.filter {
-                    (state.activeFilter == "Ready" && it.status == JobStatus.READY) ||
-                            (state.activeFilter == "Tailoring" && it.status == JobStatus.TAILORING)
+            if (filteredJobs.isEmpty()) {
+                item {
+                    Text(
+                        text = if (state.isLoading) "Loading saved opportunities…" else "No saved opportunities in this filter.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
-            items(filteredJobs) { job ->
+            items(filteredJobs, key = { it.id }) { job ->
                 SavedJobCard(
                     job = job,
                     onClick = {
                         onEvent(SavedOpportunitiesEvent.OnJobClicked(job))
                         onJobDetailsClick(job)
-                    }
+                    },
+                    onRemove = { onEvent(SavedOpportunitiesEvent.OnRemoveSaved(job.id)) }
                 )
             }
         }
     }
 }
 
-
-
-
-/**
- * Individual job card displaying company, role, match score, and current status.
- *
- * @param job The data class representing the saved job.
- * @param onClick Callback when the job card is clicked.
- * @param modifier Modifier for styling the layout.
- */
 @Composable
 fun SavedJobCard(
     job: SavedJobItem,
     onClick: () -> Unit,
+    onRemove: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -177,16 +178,11 @@ fun SavedJobCard(
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.large)
             .background(MaterialTheme.colorScheme.surface)
-            .border(
-                width = 1.dp,
-                color = Color.Black.copy(alpha = 0.05f),
-                shape = MaterialTheme.shapes.large
-            )
-            .clickable { onClick() }
+            .border(1.dp, Color.Black.copy(alpha = 0.05f), MaterialTheme.shapes.large)
+            .clickable(onClick = onClick)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Logo
         Box(
             modifier = Modifier
                 .size(48.dp)
@@ -194,16 +190,9 @@ fun SavedJobCard(
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = job.logo,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Text(job.logo, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         }
-        
         Spacer(modifier = Modifier.width(16.dp))
-        
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = job.role,
@@ -221,66 +210,51 @@ fun SavedJobCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            
             Spacer(modifier = Modifier.height(8.dp))
-            
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                val statusColor = if (job.status == JobStatus.READY) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
-                
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                val isReady = job.status == "Ready" || job.status == "Demo preview"
                 Box(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(statusColor)
+                        .background(if (isReady) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = job.status.name,
+                    text = job.status,
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = if (job.status == JobStatus.READY) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                
-                Spacer(modifier = Modifier.width(12.dp))
-                
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "· ${job.pay}",
+                    text = job.pay,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                
                 Spacer(modifier = Modifier.weight(1f))
-                
                 Text(
-                    text = "${job.matchScore}%",
+                    text = if (job.matchScore > 0) "${job.matchScore}% match" else "Match unavailable",
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.width(16.dp))
-        
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.secondary
-        )
+        Spacer(modifier = Modifier.width(12.dp))
+        TextButton(onClick = onRemove) { Text("Remove") }
+        Spacer(modifier = Modifier.width(4.dp))
+        Icon(Icons.Default.ChevronRight, contentDescription = "Open saved job", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.secondary)
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun SavedOpportunitiesScreenPreview() {
+private fun SavedOpportunitiesScreenPreview() {
     JobMatcherTheme {
-        SavedOpportunitiesScreen(
-            state = dummySavedJobsState,
-            onEvent = {},
-            onJobDetailsClick = {}
-        )
+        SavedOpportunitiesScreen(state = SavedJobsState(isLoading = false), onEvent = {}, onJobDetailsClick = {})
     }
 }
