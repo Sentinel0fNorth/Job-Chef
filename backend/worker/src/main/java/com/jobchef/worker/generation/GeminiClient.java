@@ -1,7 +1,7 @@
 package com.jobchef.worker.generation;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.jobchef.shared.config.BackendProperties;
 import com.jobchef.shared.service.ResumePrivacyGuard;
 import java.time.Duration;
@@ -162,20 +162,6 @@ public class GeminiClient implements ApplicationGenerator {
             return false;
         }
 
-        private static GenerationFailure providerFailure(RestClientResponseException exception) {
-            int status = exception.getStatusCode().value();
-            if (status == 403) {
-                return new GenerationFailure("GEMINI_ACCESS_DENIED", false, false,
-                        "Gemini denied access for the configured model or API key. Check its access and project configuration.");
-            }
-            if (status == 429) {
-                return new GenerationFailure("GEMINI_QUOTA_BLOCKED", true, true,
-                        "Gemini rejected the request because its configured quota was reached.");
-            }
-            boolean retryable = status == 408 || status >= 500;
-            return new GenerationFailure("GEMINI_PROVIDER_ERROR", retryable, false,
-                    "Gemini could not complete generation.");
-        }
         return resume.skills().stream().allMatch(skill -> skill != null && skill.length() <= 120)
                 && resume.experience().stream().allMatch(experience ->
                     experience != null && experience.employer() != null && experience.role() != null
@@ -184,6 +170,21 @@ public class GeminiClient implements ApplicationGenerator {
                 && resume.education().stream().allMatch(education ->
                     education != null && education.qualification() != null
                             && education.institution() != null && education.dates() != null);
+    }
+
+    private static GenerationFailure providerFailure(RestClientResponseException exception) {
+        int status = exception.getStatusCode().value();
+        if (status == 403) {
+            return new GenerationFailure("GEMINI_ACCESS_DENIED", false, false,
+                    "Gemini denied access for the configured model or API key. Check its access and project configuration.");
+        }
+        if (status == 429) {
+            return new GenerationFailure("GEMINI_QUOTA_BLOCKED", true, true,
+                    "Gemini rejected the request because its configured quota was reached.");
+        }
+        boolean retryable = status == 408 || status >= 500;
+        return new GenerationFailure("GEMINI_PROVIDER_ERROR", retryable, false,
+                "Gemini could not complete generation.");
     }
 
     @Override

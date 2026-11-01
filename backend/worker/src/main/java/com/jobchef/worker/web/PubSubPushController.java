@@ -1,6 +1,7 @@
 package com.jobchef.worker.web;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
 import com.jobchef.shared.error.ApiException;
 import com.jobchef.worker.generation.GenerationWorkService;
 import com.jobchef.worker.generation.GenerationWorkService.RetryGenerationException;
@@ -53,7 +54,7 @@ public class PubSubPushController {
                         "The generation event is invalid.");
             }
             work.process(event.applicationId(), event.generationVersion());
-        } catch (IllegalArgumentException | java.io.IOException exception) {
+        } catch (IllegalArgumentException | JacksonException exception) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_GENERATION_EVENT",
                     "The Pub/Sub message did not contain a valid generation event.");
         } catch (RetryGenerationException exception) {

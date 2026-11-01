@@ -1,6 +1,6 @@
 package com.jobchef.worker.generation;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.jobchef.shared.config.BackendProperties;
 import com.jobchef.shared.error.ApiException;
 import com.jobchef.shared.service.PreviewArtifactStore;

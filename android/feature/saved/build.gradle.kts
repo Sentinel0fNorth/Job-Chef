@@ -35,9 +35,6 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
 
-    // Coil for AsyncImage
-    implementation("io.coil-kt:coil-compose:2.6.0")
-
     // Koin (for koinViewModel in composables)
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.compose.viewmodel)

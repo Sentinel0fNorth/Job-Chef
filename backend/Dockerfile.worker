@@ -1,9 +1,9 @@
-FROM gradle:8.14.4-jdk21 AS build
+FROM gradle:9.8.2-jdk25 AS build
 WORKDIR /workspace
 COPY . .
 RUN gradle --no-daemon :worker:bootJar
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         curl texlive-latex-base texlive-latex-recommended lmodern \

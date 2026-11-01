@@ -30,7 +30,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     
     // Room
-    implementation(libs.room.runtime)
+    api(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
 
@@ -41,4 +41,6 @@ dependencies {
 
     // WorkManager
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.retrofit.core)
+    implementation(libs.gson)
 }

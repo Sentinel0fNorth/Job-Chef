@@ -3,14 +3,17 @@ plugins {
 }
 
 dependencies {
+    compileOnlyApi 'jakarta.servlet:jakarta.servlet-api'
     api 'org.springframework.boot:spring-boot-starter-jdbc'
     api 'org.springframework.boot:spring-boot-starter-validation'
     api 'org.springframework.boot:spring-boot-starter-data-redis'
     api 'org.springframework.boot:spring-boot-starter-security'
-    api 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
-    api 'org.flywaydb:flyway-core'
+    api 'org.springframework.boot:spring-boot-starter-security-oauth2-resource-server'
+    api 'org.springframework.boot:spring-boot-starter-flyway'
+    api 'org.springframework.boot:spring-boot-starter-jackson'
+    api 'org.springframework.boot:spring-boot-starter-restclient'
     api 'org.flywaydb:flyway-database-postgresql'
-    api 'com.google.cloud:google-cloud-storage:2.48.0'
+    api 'com.google.cloud:google-cloud-storage'
     runtimeOnly 'org.postgresql:postgresql'
     testImplementation 'com.h2database:h2'
 }

@@ -1,6 +1,6 @@
 # Job Chef backend
 
-The backend is a Java 21 / Spring Boot 3.5.7 multi-project Gradle build. `api` and `worker` are separate deployable applications; `shared` contains versioned API records, authentication, business logic, and Flyway migrations.
+The backend is a Java 25 LTS / Spring Boot 4.1.2 multi-project Gradle build using Gradle 9.8.2 and Jackson 3.1 LTS. `api` and `worker` are separate deployable applications; `shared` contains versioned API records, authentication, business logic, and Flyway migrations.
 
 - `api`: opaque per-device bearer auth, Adzuna discovery, resume and decision sync, application state, private preview access, and durable outbox dispatch.
 - `worker`: authenticated Pub/Sub push handling, bounded generation leases/recovery, Gemini structured output, privacy checks, and escaped LaTeX preview rendering.
@@ -16,7 +16,7 @@ From the repository root on a machine with Docker Compose:
 
 The demo profile uses clearly labeled synthetic listings and generated drafts. It does not call Adzuna or Gemini. The script prints a single-use 24-hour enrollment code to the terminal only. Do not save it in the repository or send it in chat.
 
-Run backend tests on a compatible machine with JDK 21 and Gradle 8.14.4:
+Run backend tests on a compatible machine with JDK 25 and Gradle 9.8.2:
 
 ```powershell
 cd backend

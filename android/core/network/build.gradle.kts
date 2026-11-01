@@ -36,9 +36,11 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.retrofit.core)
     implementation(libs.retrofit.converter.gson)
+    implementation(libs.gson)
     implementation(libs.kotlinx.serialization.json)
 
     // Koin
     implementation(platform(libs.koin.bom))
-    implementation(libs.koin.core)
+    implementation(libs.koin.android)
+    testImplementation(libs.junit)
 }

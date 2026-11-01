@@ -4,8 +4,8 @@
 
 | Layer | Configuration |
 |---|---|
-| Android | Kotlin 2.3.21, Android Gradle Plugin 9.2.0, Jetpack Compose BOM 2026.04.01, Room 2.8.4, WorkManager, Koin, PDFBox-Android |
-| Backend | Java 21, Spring Boot 3.5.7, Gradle 8.14.4, PostgreSQL/Flyway, Redis |
+| Android | Kotlin 2.4.21, Android Gradle Plugin 9.3.1, Gradle 9.7.0, Jetpack Compose BOM 2026.09.00, Room 2.8.5, WorkManager 2.12.0, Koin 4.2.2, PDFBox-Android |
+| Backend | Java 25 LTS, Spring Boot 4.1.2, Jackson 3.1 LTS, Gradle 9.8.2, PostgreSQL 18.6/Flyway, Redis 8.10.3 |
 | Async processing | PostgreSQL outbox -> Pub/Sub -> separate Cloud Run worker; local Pub/Sub emulator |
 | Document processing | On-device PDFBox text extraction and Android `PdfDocument` export; backend LaTeX preview compiled with `-no-shell-escape` and a 20-second timeout |
 | External services | Adzuna for live job search; Gemini API for structured application drafts; private GCS artifacts in live mode |

@@ -37,6 +37,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.retrofit.core)
+    implementation(libs.gson)
 
     // Koin (for koinViewModel in composables)
     implementation(platform(libs.koin.bom))

@@ -5,7 +5,7 @@ Job Chef is an offline-first Android college project for discovering a small bat
 ## What is included
 
 - **Android:** Kotlin, Jetpack Compose, Room, WorkManager, encrypted device credentials, text-based PDF import, reviewed on-device sanitization, offline decisions, and locally generated resume/cover-letter PDFs.
-- **Backend:** Java 21 / Spring Boot 3.5, a device-authenticated API, a separate Pub/Sub generation worker, PostgreSQL/Flyway, Redis quotas, Adzuna search, Gemini structured output, and private sanitized PDF previews.
+- **Backend:** Java 25 LTS / Spring Boot 4.1, a device-authenticated API, a separate Pub/Sub generation worker, PostgreSQL/Flyway, Redis quotas, Adzuna search, Gemini structured output, and private sanitized PDF previews.
 - **Local demo:** Docker Compose with PostgreSQL, Redis, the Pub/Sub emulator, API, worker, a private artifact volume, and visibly synthetic listings/generated drafts.
 - **Transfer/deployment:** separate API/worker images, opt-in Cloud Run packaging, bounded quotas and retention, secrets-by-reference examples, and teardown guidance.
 
@@ -13,7 +13,7 @@ The source implementation has **not been built or runtime-verified** in this che
 
 ## Local demonstration
 
-Prerequisites: Docker Compose, Android Studio/SDK for the configured compile SDK, JDK 21, and the Android Gradle wrapper.
+Prerequisites: Docker Compose, Android Studio/SDK for the configured compile SDK, JDK 25, and the Android Gradle wrapper. See the verified release references and dependency upgrade notes in [`docs/TRANSFER_AND_DEPLOY.md`](docs/TRANSFER_AND_DEPLOY.md).
 
 From the repository root in PowerShell:
 

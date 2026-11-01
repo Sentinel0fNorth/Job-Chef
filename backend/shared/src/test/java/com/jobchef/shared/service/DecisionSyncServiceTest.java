@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.jobchef.shared.api.ApiModels.DecisionRequest;
 import com.jobchef.shared.config.BackendProperties;
 import com.jobchef.shared.error.ApiException;
@@ -18,7 +18,7 @@ class DecisionSyncServiceTest {
     private final JdbcTemplate jdbc = Mockito.mock(JdbcTemplate.class);
     private final DecisionSyncService service = new DecisionSyncService(
             jdbc,
-            new ObjectMapper(),
+            JsonMapper.builder().build(),
             new BackendProperties(new BackendProperties.Limits(
                     20, 5, 1, 20, 50000, 20000, 60000, 24000, 2, 10, 100000)));
 

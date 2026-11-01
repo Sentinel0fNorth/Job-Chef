@@ -1,6 +1,6 @@
 package com.jobchef.shared.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.jobchef.shared.api.ApiModels.DecisionRequest;
 import com.jobchef.shared.api.ApiModels.DecisionStatus;
 import com.jobchef.shared.api.ApiModels.SyncResponse;

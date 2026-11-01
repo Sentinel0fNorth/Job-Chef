@@ -1,6 +1,6 @@
 package com.jobchef.shared.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;
 import java.time.Duration;

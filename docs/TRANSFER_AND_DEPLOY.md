@@ -13,9 +13,99 @@ Copy the repository and unchanged `.git` directory to the development device. Do
 Required build-device tools:
 
 - Android Studio with Android SDK compile platform 37, build tools, an emulator/device, and accepted Android SDK licenses.
-- JDK 21 for backend and Android Gradle; Android Gradle Plugin 9.2.0 and wrapper requirements are defined under `android/gradle`.
-- Gradle 8.14.4 for backend, Docker with Compose v2 for local services, and optionally PostgreSQL `psql` for deployment enrollment provisioning.
+- JDK 25 LTS for backend and Android Gradle. Install the current security patch for JDK 25 and select it as Android Studio's Gradle JDK; Android Gradle Plugin 9.3.1 and Gradle 9.7.0 are defined under `android/gradle`.
+- Gradle 9.8.2 for backend, Docker with Compose v2 for local services, and optionally PostgreSQL `psql` for deployment enrollment provisioning.
 - For live mode: authenticated `gcloud`, billing-enabled dedicated GCP project, external TLS PostgreSQL/Redis, and user-owned Adzuna/Gemini credentials.
+
+## Dependency upgrade baseline (November 1, 2026)
+
+Java and Jackson have explicit LTS releases; Gradle, Kotlin, AGP, AndroidX and most application libraries do not have equivalent LTS channels. Use published stable releases and compatible BOMs, not snapshots or release candidates.
+
+| Component | Previous | Selected |
+|---|---|---|
+| Backend Java / container JRE; Android Gradle JVM | 21 | 25 LTS |
+| Backend Gradle | 8.14.4 | 9.8.2 |
+| Android Gradle | 9.5.0 | 9.7.0 |
+| Spring Boot | 3.5.7 | 4.1.2 |
+| Jackson | Boot 3-managed Jackson 2 | Boot 4-managed 3.1.7 LTS |
+| Android Gradle Plugin | 9.2.0 | 9.3.1 |
+| Kotlin / Compose compiler / serialization plugin | 2.3.21 | 2.4.21 |
+| Compose BOM | 2026.04.01 | 2026.09.00 |
+| Compose foundation | Individually pinned 1.11.0 | BOM-managed 1.12.1 |
+| AndroidX Core KTX | 1.18.0 | 1.19.1 |
+| Lifecycle runtime | 2.10.0 | 2.11.0 |
+| Navigation Compose | 2.8.5 | 2.10.2 |
+| Room | 2.8.4 | 2.8.5 |
+| WorkManager | 2.10.0 | 2.12.0 |
+| Koin | 4.2.1 | 4.2.2 |
+| KSP | 2.3.7 | 2.3.13 |
+| OkHttp BOM | 5.3.2 | 5.5.1 |
+| Android Gson | Retrofit-transitive 2.13.1 | Explicit 2.15.0 |
+| kotlinx.serialization | 1.6.3 | 1.12.0 |
+| Google Cloud Storage client | 2.48.0 | 2.76.0 |
+| Google Cloud Pub/Sub client | 1.134.0 | 1.158.0 |
+| Google Cloud libraries BOM | None | 26.91.0 |
+| Local PostgreSQL image | 16-alpine | 18.6-alpine |
+| Local Redis image | 7-alpine | 8.10.3-alpine |
+
+The latest AGP found was 9.5.0 and the latest Gradle was 9.8.2. Android deliberately selects AGP 9.3.1 and Gradle 9.7.0 because those are the upper bounds of Kotlin 2.4.21's published fully supported matrix. Newer combinations are not claimed compatible merely because their artifacts exist. The backend does not use Kotlin and can use Gradle 9.8.2. Both Gradle releases support running on JDK 25. Android's Java/Kotlin bytecode target stays 17: updating the host JVM does not make Java 25 bytecode suitable for Android devices. `compileSdk=37`, `targetSdk=36` and `minSdk=29` remain unchanged to avoid unrelated platform behavior changes.
+
+Spring Boot 4's modular starters are used for MVC, RestClient, Jackson, Flyway and OAuth2 resource-server support. Application JSON code now uses Jackson 3's `tools.jackson` packages; the HTTP API version and stored JSON schemas are unchanged. The Boot BOM also upgrades Spring Framework to 7.0.10, Spring Security to 7.1.2, Flyway to 12.4.0, the PostgreSQL driver to 42.7.14, Lettuce to 7.5.2 and backend JUnit Jupiter to 6.0.3. These dependencies stay BOM-managed rather than independently overriding compatible versions. Google's libraries BOM 26.91.0 aligns Storage, Pub/Sub and shared GAX/gRPC/Protobuf/Guava dependencies; individual Google client version overrides were removed.
+
+Retrofit 3.0.0, Activity Compose 1.13.0, PDFBox-Android 2.0.27.0, JUnit 4.13.2, AndroidX test JUnit 1.3.0, Espresso 3.7.0 and the Spring dependency-management plugin 1.1.7 were already at the latest published stable versions found and are unchanged. The Pub/Sub emulator uses Google's maintained rolling `google-cloud-cli:emulators` image; there is no separate emulator LTS pin. TeX Live packages continue to come from the selected Temurin container's supported OS repository.
+
+Release and compatibility sources:
+
+- [Java LTS roadmap](https://www.oracle.com/java/technologies/java-se-support-roadmap.html), [Gradle current release metadata](https://services.gradle.org/versions/current) and [Gradle Java compatibility](https://docs.gradle.org/current/userguide/compatibility.html).
+- [Kotlin releases](https://kotlinlang.org/docs/releases.html), [Kotlin's Gradle/AGP matrix](https://kotlinlang.org/docs/gradle-configure-project.html) and [AGP 9.3 compatibility](https://developer.android.com/build/releases/agp-9-3-0-release-notes).
+- [Spring Boot release metadata](https://repo.maven.apache.org/maven2/org/springframework/boot/spring-boot-gradle-plugin/maven-metadata.xml), [Boot 4 migration guide](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide) and [Jackson 3 migration/LTS policy](https://github.com/FasterXML/jackson/blob/main/jackson3/MIGRATING_TO_JACKSON_3.md).
+- [Google Maven index](https://dl.google.com/dl/android/maven2/master-index.xml) and [Maven Central](https://repo.maven.apache.org/maven2/): selected stable artifacts/BOMs were checked directly against their published metadata and POMs.
+- [Google Cloud's Java 25 support policy](https://docs.cloud.google.com/java/docs/supported-java-versions) and [Google's BOM compatibility guidance](https://docs.cloud.google.com/java/docs/bom).
+- [PostgreSQL support/versioning](https://www.postgresql.org/support/versioning/), [PostgreSQL image layout](https://github.com/docker-library/docs/tree/master/postgres) and [Redis 8.10.3 release](https://github.com/redis/redis/releases/tag/8.10.3).
+
+### Java 25 and library compatibility review
+
+| Check | Result / replacement |
+|---|---|
+| Backend runtime and build tooling | Spring Boot 4.1.2 documents support through Java 27 and Gradle 9.x; Gradle supports Java 25 from 9.1 onward. The selected Java 25 / Gradle 9.8.2 / Boot 4.1.2 combination satisfies those published requirements. |
+| JDK APIs removed since Java 21 | Source inspection found no direct use of SecurityManager, stopped/suspended-thread APIs, `sun.*`/`jdk.internal.*`, removed compiler/Nashorn APIs, or obsolete Java EE/JAXB/Servlet packages. Standard JDBC, `java.time`, crypto, process, file and networking APIs used here remain available. This does not prove that every transitive binary is free of internal JDK calls. |
+| JSON and web APIs | Replaced `com.fasterxml.jackson.databind` with Jackson 3's `tools.jackson.databind`; Jackson annotations intentionally retain their `com.fasterxml.jackson.annotation` package. Updated Pub/Sub parsing to catch Jackson 3's unchecked `JacksonException`. Added record/nullable-field/ISO-timestamp JSON contract tests for execution on the receiving device. Replaced the old MVC/OAuth2 starters and added explicit Flyway, Jackson and RestClient starters required by Boot 4's modular auto-configuration. |
+| Google Cloud clients | Google explicitly tests Java 25. Libraries BOM 26.91.0 selects matching Storage 2.76.0 and Pub/Sub 1.158.0 stacks: GAX 2.88.0, gRPC 1.83.0, Protobuf 4.33.6 and Guava 33.6.0-jre. Neither client requires replacement. The Google clients can still depend internally on Jackson 2; do not globally exclude it simply because application JSON uses Jackson 3's separate namespace. |
+| Backend test instrumentation | Boot manages Mockito 5.23.0 and Byte Buddy 1.18.15. Byte Buddy's published compatibility table supports Java 25 from 1.17.0 onward, avoiding the older Java-21-only classfile parsing baseline. |
+| Android host versus device runtime | Gradle runs on JDK 25, but Android source/bytecode remains Java 17. Android libraries run on ART, not the backend JVM. No library substitution can make backend Java 25 bytecode universally usable on the supported Android devices. Kotlin 2.4.21 and its serialization/Compose plugins are aligned; serialization 1.12.0 declares Kotlin 2.4.10, which the selected compiler can consume. |
+| Android dependency consistency | All 33 catalog dependency coordinates were checked against published POMs, with unversioned Compose, Koin and OkHttp artifacts resolved through their BOMs. Foundation now uses the same 1.12.1 BOM version as Compose UI/runtime rather than a separate older pin. Existing JUnit 4/AndroidX test integration remains on its compatible stable line rather than being replaced with backend JUnit 6. |
+| Containers and storage | Official Gradle/JDK 25, Temurin JRE 25, PostgreSQL 18.6 and Redis 8.10.3 tags were verified without pulling images. PostgreSQL 18 uses a different data layout and a new named volume; see the precautions below. |
+
+No Java-25-incompatible direct application dependency without a suitable replacement was identified in this review. Deliberate exceptions are Android's Java 17 bytecode and the AGP/Gradle versions held within Kotlin's compatibility matrix. PDFBox-Android and the Android JUnit 4 integration have no newer compatible stable release required for this JVM upgrade and remain unchanged. Gemini's model is an explicit runtime configuration, not an LTS library pin; model availability remains credential-gated.
+
+Evidence is limited to published compatibility policies, artifact/BOM checks, API source-signature checks, Java/Kotlin syntax parsing, and configuration validation. These are **not** a Gradle dependency graph, Java 25 compilation, executed tests, Android assembly or runtime acceptance. The current device only has Java 11 and no Android SDK/Docker daemon. A bounded attempt to locate a portable JDK 25 was blocked by HTTP 403 and an incomplete release-metadata response; no repeated toolchain downloads were attempted. Run the commands below on the configured device to detect any remaining linkage or runtime issue. For an explicit dependency graph, run `gradle :api:dependencies --configuration runtimeClasspath` and `gradle :worker:dependencies --configuration runtimeClasspath`, plus Android's `.\gradlew.bat :app:dependencies --configuration debugRuntimeClasspath`.
+
+Additional references: [Boot 4.1.2 system requirements](https://github.com/spring-projects/spring-boot/blob/v4.1.2/documentation/spring-boot-docs/src/docs/antora/modules/ROOT/pages/system-requirements.adoc), [JDK 25 migration guide](https://docs.oracle.com/en/java/javase/25/migrate/index.html), and [Byte Buddy Java compatibility](https://github.com/raphw/byte-buddy#java-version-compatibility).
+
+### Follow-up import and code accommodation audit
+
+Published source archives for 77 library artifacts, including Android-specific variants, were inspected. All 294 distinct audited third-party import paths matched package/symbol source evidence: 99 backend and 195 Android paths. Internal `com.jobchef` imports also matched project declarations. Platform/JDK, Kotlin standard-library/coroutine and JUnit imports were reviewed separately; this source matching is not compiler symbol resolution, visibility checking or a complete Gradle classpath. The new loopback HTTP tests use the exported JDK `jdk.httpserver` module, not an internal `sun.*` API.
+
+The module compile-dependency review exposed missing declarations that an artifact-existence check alone did not detect:
+
+- `:core:network` now declares `koin-android`, which supplies its imported `androidContext` extension; `koin-core` alone does not.
+- Gson is now explicitly versioned at stable 2.15.0 and declared in network, database and tailor, which use its classes directly. Database and tailor also directly declare Retrofit for `HttpException`; network's `implementation` dependencies do not become those consumers' compile dependencies.
+- Database publishes Room runtime through `api`, since its public `JobChefDatabase` extends `RoomDatabase` and the resume feature uses `withTransaction`. Room remains at 2.8.5; no database schema or migration changed.
+- Shared backend declares the BOM-managed Servlet API through `compileOnlyApi`, because its public device filter uses Servlet types. Spring Web/RestClient alone does not supply this API. API/worker MVC starters continue to provide the actual servlet-container runtime.
+- Removed the unused, independently pinned Coil 2.6.0 dependency from saved opportunities; no source uses Coil or `AsyncImage`, so no replacement image library is needed.
+- Android's root build explicitly supplies Kotlin Gradle plugin 2.4.21 on the buildscript classpath for AGP's built-in Kotlin, as recommended by Google's higher-KGP-version guidance. Removed the unused `kotlin-android` plugin alias rather than applying the legacy plugin alongside built-in Kotlin. Compose and serialization plugins remain aligned at 2.4.21.
+
+Jackson 3 tree iteration, `path`/`asText`/numeric accessors, record serialization and mapper builder signatures, Spring RestClient timeouts/HTTP conversion and Security DSL, Google Storage/Pub/Sub builders, Koin ViewModel/worker DSL, Room transactions and current Compose layout calls were checked against published source signatures. No additional application API replacement was identified after the existing Jackson/Boot migration. Added synthetic loopback HTTP tests for Adzuna's Jackson 3 response decoding, result cap and quota error, and Gemini's request encoding/structured-response decoding. Added Android Gson tests for omitted nullable response fields and structured resume round trips used by offline storage/export. These tests do not contact real providers and remain **unexecuted** here.
+
+Source syntax parsing passed for 58 Java files, 71 Kotlin files and 12 Android Kotlin build scripts. Updated TOML, dependency-visibility assertions, internal/external import source matching and whitespace checks passed. Java 25 compilation, annotation processing, resolved Gradle classpaths and device runtime verification remain blocked by the documented environment prerequisites. On the receiving device, also inspect `:core:network:dependencies`, `:core:database:dependencies` and `:feature:tailor:dependencies` with `--configuration debugCompileClasspath`; a resolved classpath and a successful build are the definitive checks for remaining linkage issues.
+
+References: [AGP built-in Kotlin migration](https://developer.android.com/build/migrate-to-built-in-kotlin), [AGP higher-KGP-version configuration](https://developer.android.com/build/releases/agp-9-0-0-release-notes#runtime-dependency-on-kotlin-gradle-plugin), [Gson release metadata](https://repo.maven.apache.org/maven2/com/google/code/gson/gson/maven-metadata.xml), and the selected artifacts' published source archives/POMs in Maven Central and Google Maven. Audit downloads stayed in temporary session artifacts, not the repository or global build-tool installation.
+
+### Existing local database volumes
+
+Do not attach a PostgreSQL 16 data directory to PostgreSQL 18. A major database upgrade needs a dump/restore or `pg_upgrade`; Flyway does not upgrade the database engine. The updated Compose file uses a **new `postgres-18-data` volume**, mounted at `/var/lib/postgresql` as required by the PostgreSQL 18 image. The old `postgres-data` volume is preserved and is not used or deleted automatically. A new demo starts with an empty database and requires new device enrollment; old tokens point to the previous database. If retaining existing demo data, dump it using the old PostgreSQL 16 setup before switching, then restore into the new PostgreSQL 18 database and run Flyway migrations. Keep a verified backup until acceptance passes. Redis persistence should also be backed up before its major upgrade; do not downgrade a volume after Redis 8 has written to it.
+
+`stop-local-demo.ps1 -DeleteLocalData` only deletes volumes referenced by the current Compose file after confirmation. It does not delete the preserved PostgreSQL 16 volume. Inspect any old volumes explicitly before deciding whether to remove them. External managed PostgreSQL/Redis versions are controlled by their providers; this change does not upgrade cloud databases.
 
 ## Run the synthetic local stack
 
@@ -52,13 +142,13 @@ To deliberately erase named PostgreSQL, Redis, and preview-artifact volumes:
 
 ## Automated and manual acceptance
 
-With JDK 21 and Gradle 8.14.4:
+With JDK 25 and Gradle 9.8.2:
 
 ```powershell
 cd backend
 gradle :shared:test :api:test :worker:test
 cd ..\android
-.\gradlew.bat :feature:resume:testDebugUnitTest :app:testDebugUnitTest
+.\gradlew.bat :core:network:testDebugUnitTest :feature:resume:testDebugUnitTest :app:testDebugUnitTest
 .\gradlew.bat :app:assembleDebug -PjobChefApiBaseUrl=http://10.0.2.2:8081/
 ```
 
